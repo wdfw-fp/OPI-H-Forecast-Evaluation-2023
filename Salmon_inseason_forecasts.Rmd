@@ -1,0 +1,177 @@
+---
+title: Columbia Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
+author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+***
+
+Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
+
+***
+
+
+# Overview
+This script fits two regression models to in-season hatchery return data to predict total return
+
+## Setup
+All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs
+```{r set_options, echo = TRUE, message = FALSE}
+options(width = 100)
+knitr::opts_chunk$set(message = FALSE)
+set.seed(123)
+```
+
+We also need a couple of helper functions which we will define
+```{r load_funcs, message = FALSE, warning = FALSE,results = "hide"}
+wd_functions<-"functions"
+sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
+```
+
+Here we will load & install packages we need to use (needs internet connection if packages not already installed)
+```{r load_packages, message = FALSE, warning = FALSE,results = "hide"}
+packages_list<-c("tidyverse"
+                 ,"forecast"
+                 ,"mgcv"
+                 ,"ggplot2"
+                 ,"MASS"
+                 ,"RColorBrewer"
+                 ,"kableExtra"
+                 ,"lubridate"
+                 ,"modelr"
+                 ,"kableExtra"
+                 ,"reshape2"
+                 ,"ggfortify"
+                 ,"clock"
+                 ,"smooth"
+                 ,"scales"
+                 )
+install_or_load_pack(pack = packages_list)
+```
+
+## User Inputs 
+
+```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
+#=========
+# Raw Data
+#=========
+yr_start<-2003
+yr_end<-2021#year(Sys.Date())
+dam="BON"
+species="WStlhd"
+#===========================
+# Summarization for analysis
+#===========================
+date_start_analysis<-ymd("2003/3/15")
+date_end_analysis<-ymd("2022/7/31")
+p_2_start_m<-7
+p_2_start_d<-1
+covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
+#==================
+#forecasting params
+#==================
+leave_yrs<- 15
+covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
+plot_results = TRUE
+first_forecast_period = 2
+write_model_summaries = TRUE
+```
+
+## Get Raw Data
+```{r get_data, message=FALSE, warning=FALSE, results="show"}
+
+dat<-get_dam_data(
+  yr_start = yr_start,
+  yr_end = yr_end,
+  dam = dam,
+  species = species
+)
+
+#=========================================================
+#get NPGO data
+#=========================================================
+NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment="#")%>%
+  filter(!is.na(X2))%>%
+  dplyr::rename(Year=X1,Month=X2,NPGO=X3)%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Year)%>%
+  add_tally()%>%
+  #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
+  filter(!n < 12)%>% #use only complete years
+  group_by(Year)%>%
+  dplyr::summarise(NPGO=mean(NPGO))%>%
+  mutate(Year=Year+1, lag1_NPGO = NPGO,lag2_NPGO = lag(NPGO))%>%
+  dplyr::select(year=Year,lag1_NPGO,lag2_NPGO)
+
+# #=========================================================
+# #get PIT tag survival/age data
+# #=========================================================
+PIT<-read_csv("https://raw.githubusercontent.com/tbuehrens/Salmon_Forecast_Example/main/data/Columbia_Steelhead_SAR_DART_11_1_2021.csv")%>%
+  dplyr::rename(OutmigrationYear=year)%>%
+  mutate(Year=OutmigrationYear+2)%>%
+  filter(Pop=="SNA")
+
+PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)~s(OutmigrationYear,k=(dim(PIT)[1])),family=binomial,data=PIT)$fitted))%>%
+  bind_cols(data.frame(SAR2=c(gam(cbind(ocean2Count,juvCount-ocean2Count)~s(OutmigrationYear,k=(dim(PIT)[1]-1)),family=binomial,data=PIT)$fitted,NA)))%>%
+  mutate(lag1_log_SAR1 = log(SAR1),lag1_log_SAR2=lag(log(SAR2),1))%>%
+  dplyr::select(year=Year,lag1_log_SAR1,lag1_log_SAR2)
+
+dat<-dat%>%
+  left_join(NPGO)%>%
+  left_join(PIT)
+
+print(head(dat))
+
+print(tail(dat))
+
+```
+
+## Summarize Data for Analysis
+```{r summarize_data, message=FALSE, warning=FALSE, results="show"}
+series<-prepare_data(series = dat,
+                  date_start_analysis = date_start_analysis,
+                  date_end_analysis = date_end_analysis,
+                  p_2_start_m = p_2_start_m,
+                  p_2_start_d = p_2_start_d,
+                  covariates = covariates
+                  )
+
+```
+
+
+## User Inputs To Run SARIMA training, testing & forecasting
+```{r user_inputs_model, message = FALSE, warning = FALSE,results = "show"}
+
+```
+
+
+
+## SARIMA results
+```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
+results<-inseason_forecast(series,
+                  leave_yrs,
+                  covariates,
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries
+                  )
+
+results%>%
+  ungroup()%>%
+  dplyr::select(!c("period","train_test"))%>%
+  kbl(caption = paste0("Table 2. Forecasts of BON wild steelhead counts 7/1-7/31 using only past years' data and in-season counts up until ", month(last(as.Date(series$date))),"/",mday(as.Date(last(series$date))), " in each year. Results are based on a SARIMA model using a two count sums at BON: the count from 3/15 to the latest day of available data, and counts from 7/1 to 7/31. Additional covariates are included in the table below."),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
+print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",exp(mean(abs(log((results$error/results$abundance)*100)),na.rm = T))))
+```
