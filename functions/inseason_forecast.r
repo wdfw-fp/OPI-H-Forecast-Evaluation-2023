@@ -45,38 +45,55 @@ inseason_forecast<-function(series,
       dplyr::select(all_of(covariates))%>%
       as.matrix()
     
-    m1<-tdat%>%
-      filter(train_test==0)%>%
-      ungroup()%>%
-      dplyr::select(abundance)%>%
-      unlist()%>%
-      ts(frequency = 2)%>%
-      auto.arima(lambda=0,seasonal = T, xreg = xreg)
+    xreg_pred<-tdat%>%
+      filter(train_test==1)%>%
+      ungroup%>%
+      dplyr::select(all_of(covariates))%>%
+      as.matrix()
+
+    if(ncol(xreg)>0){
+      m1<-tdat%>%
+        filter(train_test==0)%>%
+        ungroup()%>%
+        dplyr::select(abundance)%>%
+        unlist()%>%
+        ts(frequency = 2)%>%
+        auto.arima(lambda=0,seasonal = T, xreg = xreg)
+      
+      pred<-c(m1$fitted,forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2,
+                                           xreg = xreg_pred
+      )$mean)
+      CI<-forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2, level = c(50, 95),
+                             xreg = xreg_pred
+      )%>%
+        as_tibble()%>%
+        dplyr::select(!`Point Forecast`)%>%
+        mutate(year = last_train_yr+1, period = ifelse(first_forecast_period == 2,2,c(1:2)))
+    }else{
+      m1<-tdat%>%
+        filter(train_test==0)%>%
+        ungroup()%>%
+        dplyr::select(abundance)%>%
+        unlist()%>%
+        ts(frequency = 2)%>%
+        auto.arima(lambda=0,seasonal = T, xreg = NULL)
+      
+      pred<-c(m1$fitted,forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2,
+                                           xreg = NULL
+      )$mean)
+      CI<-forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2, level = c(50, 95),
+                             xreg = NULL
+      )%>%
+        as_tibble()%>%
+        dplyr::select(!`Point Forecast`)%>%
+        mutate(year = last_train_yr+1, period = ifelse(first_forecast_period == 2,2,c(1:2)))
+    }
     
     if(write_model_summaries ==T){
       sink("summary.txt",append=T)
       print(summary(m1))
       sink()
     }
-    
-    pred<-c(m1$fitted,forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2,
-                                         xreg = tdat%>%
-                                           filter(train_test==1)%>%
-                                           ungroup%>%
-                                           dplyr::select(all_of(covariates))%>%
-                                           as.matrix()
-    )$mean)
-    CI<-forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2, level = c(50, 95),
-                           xreg = tdat%>%
-                             filter(train_test==1)%>%
-                             ungroup%>%
-                             dplyr::select(all_of(covariates))%>%
-                             as.matrix()
-    )%>%
-      as_tibble()%>%
-      dplyr::select(!`Point Forecast`)%>%
-      mutate(year = last_train_yr+1, period = ifelse(first_forecast_period == 2,2,c(1:2)))
-    
     
     tdat<-tdat%>%
       bind_cols(pred=pred)%>%
