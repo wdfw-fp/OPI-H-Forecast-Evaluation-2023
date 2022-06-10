@@ -66,7 +66,7 @@ install_or_load_pack(pack = packages_list)
 # Raw Data
 #=========
 yr_start<-2003
-yr_end<-2021#year(Sys.Date())
+yr_end<-year(Sys.Date())
 dam="BON"
 species="WStlhd"
 #===========================
@@ -82,7 +82,7 @@ covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
 #==================
 leave_yrs<- 15
 covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
-plot_results = TRUE
+plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
 ```
@@ -148,14 +148,6 @@ series<-prepare_data(series = dat,
 
 ```
 
-
-## User Inputs To Run SARIMA training, testing & forecasting
-```{r user_inputs_model, message = FALSE, warning = FALSE,results = "show"}
-
-```
-
-
-
 ## SARIMA results
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
 results<-inseason_forecast(series,
@@ -174,4 +166,12 @@ results%>%
 
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
 print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",exp(mean(abs(log((results$error/results$abundance)*100)),na.rm = T))))
+
+p<-ggplot(results,aes(x=year,y=predicted_abundance))+
+  geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
+  geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
+  geom_line()+
+  geom_point(aes(x=year,y=abundance))
+
+print(p)
 ```
