@@ -20,25 +20,24 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 
 ***
 
-
 # Overview
-This script fits two regression models to in-season hatchery return data to predict total return
+This script fits Seasonal Auto-regressive Integrated Moving Average models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
 
-## Setup
-All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs
+<!-- ## Setup -->
+<!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
 ```{r set_options, echo = TRUE, message = FALSE}
 options(width = 100)
 knitr::opts_chunk$set(message = FALSE)
 set.seed(123)
 ```
 
-We also need a couple of helper functions which we will define
+<!-- We also need a couple of helper functions which we will define -->
 ```{r load_funcs, message = FALSE, warning = FALSE,results = "hide"}
 wd_functions<-"functions"
 sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
 ```
 
-Here we will load & install packages we need to use (needs internet connection if packages not already installed)
+<!-- Here we will load & install packages we need to use (needs internet connection if packages not already installed) -->
 ```{r load_packages, message = FALSE, warning = FALSE,results = "hide"}
 packages_list<-c("tidyverse"
                  ,"forecast"
@@ -60,7 +59,7 @@ install_or_load_pack(pack = packages_list)
 ```
 
 ## User Inputs 
-
+Look at this section to see user inputs regarding the years and dates of data analyzed and covariates used.
 ```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
 #=========
 # Raw Data
@@ -72,10 +71,11 @@ species="WStlhd"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("2003/3/15")
-date_end_analysis<-ymd("2022/7/31")
-p_2_start_m<-7
-p_2_start_d<-1
+date_start_analysis<-ymd("2003/3/15") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2022/7/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+forecast_period_start_m<-7 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
 covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
 #==================
 #forecasting params
@@ -88,6 +88,7 @@ write_model_summaries = TRUE
 ```
 
 ## Get Raw Data
+Data is loaded here a a snapshot of the data used in the analysis (before aggregation into the two periods described) is provided.
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 
 dat<-get_dam_data(
@@ -131,37 +132,43 @@ dat<-dat%>%
   left_join(PIT)
 
 print(head(dat))
-
-print(tail(dat))
-
 ```
 
-## Summarize Data for Analysis
+<!-- ## Summarize Data for Analysis -->
 ```{r summarize_data, message=FALSE, warning=FALSE, results="show"}
 series<-prepare_data(series = dat,
                   date_start_analysis = date_start_analysis,
                   date_end_analysis = date_end_analysis,
-                  p_2_start_m = p_2_start_m,
-                  p_2_start_d = p_2_start_d,
+                  forecast_period_start_m = forecast_period_start_m, #inclusive 
+                  forecast_period_start_d = forecast_period_start_d, #inclusive
+                  use_freshest_data = use_freshest_data,
                   covariates = covariates
                   )
 
 ```
 
-## SARIMA results
+## Results
+This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
-results<-inseason_forecast(series,
+results<-inseason_forecast(series$series,
                   leave_yrs,
                   covariates,
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
-                  write_model_summaries = write_model_summaries
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  obs_period_2 = series$obs_period_2
                   )
+
+p_2_start_m<-series$p_2_start_m
+p_2_start_d<-series$p_2_start_d
+
 
 results%>%
   ungroup()%>%
   dplyr::select(!c("period","train_test"))%>%
-  kbl(caption = paste0("Table 2. Forecasts of BON wild steelhead counts 7/1-7/31 using only past years' data and in-season counts up until ", month(last(as.Date(series$date))),"/",mday(as.Date(last(series$date))), " in each year. Results are based on a SARIMA model using a two count sums at BON: the count from 3/15 to the latest day of available data, and counts from 7/1 to 7/31. Additional covariates are included in the table below."),digits =2)%>%
+  kbl(caption = paste0("Table 2. Forecasts of ",dam," dam counts of ",species, " from ",forecast_period_start_m,"/",forecast_period_start_d,"-",month(date_end_analysis),"/",mday(date_end_analysis)," using only past years' data for the forecast period and in-season counts from ", month(date_start_analysis),"/",mday(date_start_analysis)," through ", month(max(dat$date)),"/",mday(max(dat$date)), " in each year. Additional covariates are included in the table below."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
@@ -171,7 +178,8 @@ p<-ggplot(results,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_line()+
-  geom_point(aes(x=year,y=abundance))
+  geom_point(aes(x=year,y=abundance))+
+  ylim(0,NA)
 
 print(p)
 ```

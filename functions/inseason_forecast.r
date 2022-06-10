@@ -1,8 +1,18 @@
 #function to evaluate performance of SARIMA model (produces season total forecasts only)
-inseason_forecast<-function(series,leave_yrs,covariates,first_forecast_period,plot_results, write_model_summaries){
+inseason_forecast<-function(series,
+                            leave_yrs,
+                            covariates,
+                            first_forecast_period,
+                            plot_results,
+                            write_model_summaries,
+                            forecast_period_start_m, #inclusive
+                            forecast_period_start_d, #inclusive
+                            obs_period_2
+                            ){
   if(write_model_summaries ==T){
     write.table(NULL,"summary.txt")
   }
+  
   for(i in 1:leave_yrs){
     last_train_yr = max(series$year) - (leave_yrs-i+1)
     tdat<-series%>%
@@ -88,14 +98,28 @@ inseason_forecast<-function(series,leave_yrs,covariates,first_forecast_period,pl
      
     tdat<-tdat%>%
       dplyr::rename(predicted_abundance = pred)%>%
-      filter(train_test==1)%>%
-      mutate(error = predicted_abundance-abundance,
-             pct_error=scales::percent(error/abundance)
-    )
+      filter(train_test==1)
     
     if(i==1){results = tdat
     }else{results = results %>% bind_rows(tdat)}
   }
+  
+  if(nrow(obs_period_2)>0){
+    results<-results%>%
+      left_join(obs_period_2)%>%
+      mutate(
+        abundance = abundance + + obs_abundance,
+        predicted_abundance = predicted_abundance + obs_abundance,
+        `Lo 50` = `Lo 50` + obs_abundance,
+        `Lo 95` = `Lo 95` + obs_abundance,
+        `Hi 50` = `Hi 50` + obs_abundance,
+        `Hi 95` = `Hi 95` + obs_abundance,
+        )
+  }
+  results<-results%>%
+    mutate(error = predicted_abundance-abundance,
+           pct_error=scales::percent(error/abundance)
+    )
   return(results)
 }
 
