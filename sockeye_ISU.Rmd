@@ -1,5 +1,5 @@
 ---
-title: Columbia Sockeye Inseason Forecast for Counts 5/15-9/30 @ Bonneville Dam
+title: Columbia Sockeye Inseason Forecast for Counts 5/1-12/31 @ Bonneville Dam
 author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
 output:
   html_document:
