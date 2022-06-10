@@ -71,17 +71,17 @@ species="Sock"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("2002/5/15") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2022/9/30") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+date_start_analysis<-ymd("2002/5/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2022/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-5 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
-forecast_period_start_d<-15 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
 covariates<-c("lag1_NPGO","lag2_NPGO","lag1_PDO","lag2_PDO","log_tot_pk_num","pink_ind", "lag1_log_SAR1","lag1_log_SAR2")
 #==================
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("pink_ind","lag2_NPGO","lag1_log_SAR1","lag1_log_SAR2") #"lag1_NPGO","lag1_PDO","lag2_PDO",
+covariates<-c("pink_ind","lag1_log_SAR1") #"lag1_log_SAR2","lag2_NPGO","lag1_NPGO","lag1_PDO","lag2_PDO",
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
