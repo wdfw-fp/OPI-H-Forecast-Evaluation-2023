@@ -21,7 +21,7 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 ***
 
 # Overview
-This script fits Seasonal Auto-regressive Integrated Moving Average models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
+This script fits Seasonal Auto-Regressive Integrated Moving Average (SARIMA) models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
 
 <!-- ## Setup -->
 <!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
