@@ -157,7 +157,7 @@ dat<-dat%>%
   left_join(PIT)%>%
   mutate(pink_ind = ifelse(year>1999 & year%%2==0,0,1))
 
-print(tail(dat),20)
+print(head(dat))
 ```
 
 <!-- ## Summarize Data for Analysis -->

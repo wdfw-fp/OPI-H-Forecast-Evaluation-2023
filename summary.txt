@@ -5,6 +5,66 @@ Box Cox transformation: lambda= 0
 
 Coefficients:
       pink_ind  lag1_log_SAR1
+       -0.1072         0.6095
+s.e.    0.1579         0.1274
+
+sigma^2 estimated as 0.1212:  log likelihood=-3.42
+AIC=12.85   AICc=20.85   BIC=12.69
+
+Training set error measures:
+                   ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
+Training set 1717.131 13741.34 7200.165 -3.754998 25.76817 0.4029417 -0.03597308
+Series: . 
+Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+      pink_ind  lag1_log_SAR1
+       -0.3520         0.5744
+s.e.    0.1914         0.1426
+
+sigma^2 estimated as 0.258:  log likelihood=-7.58
+AIC=21.15   AICc=25.95   BIC=21.74
+
+Training set error measures:
+                   ME  RMSE      MAE       MPE     MAPE      MASE      ACF1
+Training set 13062.22 42469 19166.01 -5.664068 37.43453 0.6493719 -0.133715
+Series: . 
+Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+      pink_ind  lag1_log_SAR1
+       -0.4716         0.4647
+s.e.    0.1696         0.1168
+
+sigma^2 estimated as 0.2663:  log likelihood=-9.25
+AIC=24.5   AICc=27.93   BIC=25.69
+
+Training set error measures:
+                   ME     RMSE      MAE     MPE    MAPE      MASE          ACF1
+Training set 484.4204 54192.34 27022.28 -9.3081 41.2028 0.9647048 -0.0005890117
+Series: . 
+Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+      pink_ind  lag1_log_SAR1
+       -0.6567         0.4184
+s.e.    0.1923         0.1331
+
+sigma^2 estimated as 0.408:  log likelihood=-13.55
+AIC=33.1   AICc=35.76   BIC=34.79
+
+Training set error measures:
+                   ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
+Training set 19328.17 72644.09 35085.52 -19.65513 54.05479 0.9442433 -0.08385347
+Series: . 
+Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+      pink_ind  lag1_log_SAR1
        -0.7355         0.4893
 s.e.    0.1824         0.1284
 
