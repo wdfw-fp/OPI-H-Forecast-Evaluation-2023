@@ -205,7 +205,8 @@ p<-ggplot(results,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_line()+
   geom_point(aes(x=year,y=abundance))+
-  ylim(0,NA)
+  ylim(0,NA)+
+  scale_x_continuous(breaks=unique(results$year))
 
 print(p)
 ```
