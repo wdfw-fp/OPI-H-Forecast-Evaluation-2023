@@ -81,7 +81,7 @@ covariates<-c("lag1_NPGO","lag2_NPGO","lag1_PDO","lag2_PDO","log_tot_pk_num","pi
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("pink_ind","lag1_log_SAR1") #"lag1_log_SAR2","lag2_NPGO","lag1_NPGO","lag1_PDO","lag2_PDO",
+covariates<-c("pink_ind","lag1_log_SAR1")#,"lag2_NPGO","lag2_PDO","lag1_log_SAR2","lag1_NPGO","lag1_PDO")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE

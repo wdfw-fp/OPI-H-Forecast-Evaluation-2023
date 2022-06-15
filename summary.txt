@@ -1,226 +1,166 @@
 ""
 Series: . 
-Regression with ARIMA(1,0,1)(1,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-          ar1      ma1     sar1    drift  lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-      -0.3591  -0.8969  -0.9730  -0.1944         0.6317    -0.2969         0.1137     0.0731
-s.e.   0.4128   0.3576   0.0316   0.0337         0.0854     0.0667         0.0338     0.0369
-
-sigma^2 estimated as 0.02422:  log likelihood=9.49
-AIC=-0.97   AICc=-180.97   BIC=0.8
-
-Training set error measures:
-                    ME     RMSE      MAE      MPE     MAPE     MASE        ACF1
-Training set -8.100989 672.7046 415.2105 0.654002 3.708673 0.118609 -0.09757848
-Series: . 
 Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
 Box Cox transformation: lambda= 0 
 
 Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.1362     0.0669        -0.0023     0.1533
-s.e.         0.2082     0.0966         0.0496     0.0858
+      pink_ind  lag1_log_SAR1
+       -0.7131         0.3939
+s.e.    0.1598         0.1125
 
-sigma^2 estimated as 0.1074:  log likelihood=-0.85
-AIC=11.7   AICc=23.7   BIC=13.69
-
-Training set error measures:
-                   ME     RMSE      MAE       MPE    MAPE      MASE        ACF1
-Training set 489.2344 6292.009 3678.766 -3.083298 20.8019 0.6887669 -0.03779427
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.1466     0.1224        -0.0030     0.0836
-s.e.         0.2135     0.1067         0.0487     0.0923
-
-sigma^2 estimated as 0.1287:  log likelihood=-2.73
-AIC=15.45   AICc=24.02   BIC=18.28
+sigma^2 estimated as 0.3378:  log likelihood=-14.08
+AIC=34.17   AICc=36.35   BIC=36.29
 
 Training set error measures:
-                   ME     RMSE      MAE        MPE     MAPE      MASE        ACF1
-Training set -55.5986 6702.907 4203.349 -0.2546801 21.97434 0.8739052 -0.03930851
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.2416     0.1375         0.0160     0.0380
-s.e.         0.1795     0.1015         0.0427     0.0822
-
-sigma^2 estimated as 0.1168:  log likelihood=-2.85
-AIC=15.7   AICc=22.37   BIC=19.24
-
-Training set error measures:
-                   ME    RMSE      MAE       MPE     MAPE     MASE        ACF1
-Training set 373.2312 7992.62 5061.337 -2.570226 23.22005 0.862767 -0.01640551
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.2711     0.1279         0.0221     0.0364
-s.e.         0.1545     0.0946         0.0380     0.0747
-
-sigma^2 estimated as 0.1007:  log likelihood=-2.33
-AIC=14.66   AICc=20.12   BIC=18.83
-
-Training set error measures:
-                   ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
-Training set -99.6744 7769.375 4850.836 -4.137634 22.06158 0.7087233 -0.01060913
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3532     0.0859         0.0406     0.0425
-s.e.         0.1519     0.0987         0.0381     0.0775
-
-sigma^2 estimated as 0.1109:  log likelihood=-3.82
-AIC=17.63   AICc=22.25   BIC=22.36
-
-Training set error measures:
-                    ME     RMSE      MAE       MPE    MAPE      MASE        ACF1
-Training set -1301.946 8971.004 5391.685 -9.925382 24.8176 0.7742985 -0.02159858
+                   ME     RMSE      MAE       MPE    MAPE     MASE        ACF1
+Training set 19338.76 63407.19 31655.49 -2.595771 47.3703 0.706016 -0.09455657
 Series: . 
 Regression with ARIMA(0,0,0)(0,1,1)[2] errors 
 Box Cox transformation: lambda= 0 
 
 Coefficients:
-         sma1  lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-      -0.6814         0.3144     0.1225         0.0299     0.0577
-s.e.   0.1903         0.0833     0.0622         0.0293     0.0659
+         sma1   drift  pink_ind  lag1_log_SAR1
+      -0.7256  0.0642   -0.6333         0.4535
+s.e.   0.2372  0.0239    0.1885         0.0903
 
-sigma^2 estimated as 0.07764:  log likelihood=-0.73
-AIC=13.46   AICc=19.46   BIC=19.73
-
-Training set error measures:
-                    ME     RMSE      MAE       MPE     MAPE      MASE         ACF1
-Training set -168.6298 6849.568 3720.208 -8.581613 19.44586 0.5840332 -0.006502888
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3389     0.0602         0.0379     0.0273
-s.e.         0.1362     0.0953         0.0356     0.0725
-
-sigma^2 estimated as 0.1072:  log likelihood=-4.76
-AIC=19.52   AICc=23.05   BIC=25.2
-
-Training set error measures:
-                    ME     RMSE      MAE       MPE     MAPE      MASE         ACF1
-Training set -574.7565 8491.745 5041.749 -5.181453 24.52806 0.7931454 -0.001446831
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3350     0.0692         0.0366      0.028
-s.e.         0.1307     0.0885         0.0341      0.068
-
-sigma^2 estimated as 0.09801:  log likelihood=-4.26
-AIC=18.52   AICc=21.68   BIC=24.61
-
-Training set error measures:
-                    ME     RMSE      MAE     MPE     MAPE      MASE         ACF1
-Training set -714.8686 8200.009 4844.743 -5.0563 23.36773 0.7594069 -0.007134155
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3642     0.0825         0.0438     0.0482
-s.e.         0.1234     0.0910         0.0334     0.0687
-
-sigma^2 estimated as 0.1042:  log likelihood=-5.62
-AIC=21.24   AICc=24.09   BIC=27.72
+sigma^2 estimated as 0.216:  log likelihood=-11.84
+AIC=33.68   AICc=39.13   BIC=37.85
 
 Training set error measures:
                    ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
-Training set -1152.59 8279.653 4910.668 -7.552095 24.92123 0.7548594 -0.02196053
+Training set 13343.24 57438.69 29341.17 -10.20562 37.18837 0.5266824 -0.08952789
 Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Regression with ARIMA(0,0,0)(0,1,1)[2] errors 
 Box Cox transformation: lambda= 0 
 
 Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-              0.360     0.0841         0.0426     0.0486
-s.e.          0.111     0.0874         0.0310     0.0660
+         sma1   drift  pink_ind  lag1_log_SAR1
+      -0.7492  0.0524   -0.5991         0.4511
+s.e.   0.2078  0.0206    0.1795         0.0894
 
-sigma^2 estimated as 0.09601:  log likelihood=-5.02
-AIC=20.04   AICc=22.65   BIC=26.87
+sigma^2 estimated as 0.2098:  log likelihood=-12.94
+AIC=35.89   AICc=40.5   BIC=40.61
+
+Training set error measures:
+                   ME     RMSE   MAE       MPE     MAPE      MASE        ACF1
+Training set 15160.85 56271.16 26286 -8.887097 35.50965 0.4048747 -0.09975556
+Series: . 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.8661  -0.4695  0.0547   -0.5679         0.5102
+s.e.   0.2208   0.2158  0.0242    0.1871         0.0812
+
+sigma^2 estimated as 0.2171:  log likelihood=-14.17
+AIC=40.35   AICc=46.35   BIC=46.61
 
 Training set error measures:
                    ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
-Training set -1050.85 7989.853 4600.118 -6.775599 23.57309 0.7221535 -0.01976412
+Training set 2112.753 67944.05 34255.04 -7.541415 34.85877 0.4438285 -0.02865168
 Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Regression with ARIMA(0,0,0)(0,1,1)[2] errors 
 Box Cox transformation: lambda= 0 
 
 Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3427     0.0787         0.0411     0.0505
-s.e.         0.1062     0.0859         0.0303     0.0624
+         sma1   drift  pink_ind  lag1_log_SAR1
+      -0.9128  0.0792   -0.6045         0.3781
+s.e.   0.5632  0.0139    0.1810         0.0884
 
-sigma^2 estimated as 0.09251:  log likelihood=-4.95
-AIC=19.9   AICc=22.3   BIC=27.07
+sigma^2 estimated as 0.2198:  log likelihood=-16.89
+AIC=43.79   AICc=47.32   BIC=49.47
 
 Training set error measures:
-                    ME    RMSE      MAE       MPE     MAPE      MASE        ACF1
-Training set -1063.884 7703.19 4422.208 -7.402734 23.41982 0.7299005 -0.02088448
+                   ME     RMSE      MAE       MPE     MAPE     MASE        ACF1
+Training set 15221.52 55427.49 29077.77 -15.88302 40.64249 0.382191 -0.02845029
 Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
 Box Cox transformation: lambda= 0 
 
 Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3141     0.0813         0.0356     0.0244
-s.e.         0.1040     0.0839         0.0303     0.0607
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.5622  -0.5355  0.0802   -0.6379         0.3750
+s.e.   0.1798   0.1974  0.0237    0.1034         0.0756
 
-sigma^2 estimated as 0.09334:  log likelihood=-5.56
-AIC=21.12   AICc=23.35   BIC=28.61
+sigma^2 estimated as 0.2208:  log likelihood=-16.9
+AIC=45.81   AICc=50.47   BIC=53.12
 
 Training set error measures:
-                   ME    RMSE     MAE       MPE     MAPE      MASE        ACF1
-Training set -878.581 7528.54 4359.18 -6.178905 23.43011 0.7606879 -0.01301951
+                   ME     RMSE      MAE       MPE     MAPE      MASE       ACF1
+Training set 3866.451 69261.14 36665.78 -11.37938 36.21889 0.4691483 0.00977276
 Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
 Box Cox transformation: lambda= 0 
 
 Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.3566     0.0432         0.0419     0.0277
-s.e.         0.0950     0.0790         0.0294     0.0605
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.5661  -0.5538  0.0809   -0.6461         0.3673
+s.e.   0.1733   0.1864  0.0222    0.0924         0.0624
 
-sigma^2 estimated as 0.09285:  log likelihood=-5.94
-AIC=21.89   AICc=23.96   BIC=29.66
-
-Training set error measures:
-                    ME     RMSE      MAE       MPE     MAPE      MASE         ACF1
-Training set -763.7798 7590.822 4349.655 -6.164272 23.42899 0.7837782 -0.007545701
-Series: . 
-Regression with ARIMA(0,0,0)(0,1,0)[2] errors 
-Box Cox transformation: lambda= 0 
-
-Coefficients:
-      lag1_log_SAR1  lag2_NPGO  lag1_log_SAR2  lag1_NPGO
-             0.4341     0.0026         0.0574     0.0506
-s.e.         0.0763     0.0732         0.0270     0.0565
-
-sigma^2 estimated as 0.09243:  log likelihood=-6.33
-AIC=22.66   AICc=24.59   BIC=30.71
+sigma^2 estimated as 0.2034:  log likelihood=-17.18
+AIC=46.35   AICc=50.55   BIC=54.13
 
 Training set error measures:
                    ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
-Training set -870.811 7656.997 4254.633 -6.286362 23.37931 0.7619106 -0.01045306
+Training set 3049.575 67492.51 34542.97 -10.73527 33.94713 0.4296448 0.007702135
+Series: . 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.5989  -0.5258  0.0786   -0.6726         0.3806
+s.e.   0.1678   0.1696  0.0219    0.0926         0.0503
+
+sigma^2 estimated as 0.2023:  log likelihood=-18.28
+AIC=48.56   AICc=52.38   BIC=56.77
+
+Training set error measures:
+                 ME     RMSE      MAE       MPE     MAPE      MASE        ACF1
+Training set 4030.8 67857.71 35406.06 -10.28216 35.40527 0.4492249 0.009231208
+Series: . 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.6273  -0.5189  0.0834   -0.7015         0.3776
+s.e.   0.1620   0.1705  0.0213    0.0928         0.0485
+
+sigma^2 estimated as 0.2029:  log likelihood=-19.57
+AIC=51.13   AICc=54.63   BIC=59.74
+
+Training set error measures:
+                   ME     RMSE     MAE       MPE     MAPE      MASE        ACF1
+Training set 835.0481 69628.67 35633.7 -10.35028 35.47927 0.4561407 0.008311139
+Series: . 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.6556  -0.4799  0.0893   -0.7478         0.3745
+s.e.   0.1640   0.1791  0.0220    0.1009         0.0504
+
+sigma^2 estimated as 0.2223:  log likelihood=-22.25
+AIC=56.49   AICc=59.72   BIC=65.47
+
+Training set error measures:
+                   ME     RMSE      MAE      MPE     MAPE      MASE        ACF1
+Training set 2579.559 81081.03 42611.29 -11.0425 37.39143 0.5235042 0.009085409
+Series: . 
+Regression with ARIMA(0,0,0)(2,1,0)[2] errors 
+Box Cox transformation: lambda= 0 
+
+Coefficients:
+         sar1     sar2   drift  pink_ind  lag1_log_SAR1
+      -0.6210  -0.4482  0.0955   -0.7494         0.3733
+s.e.   0.1554   0.1780  0.0220    0.0972         0.0513
+
+sigma^2 estimated as 0.2205:  log likelihood=-23.35
+AIC=58.7   AICc=61.7   BIC=68.03
+
+Training set error measures:
+                  ME     RMSE      MAE      MPE     MAPE      MASE        ACF1
+Training set 1177.29 80746.79 42643.77 -11.1868 38.35449 0.5191787 0.009966613
