@@ -13,7 +13,12 @@ output:
     toc: yes
     toc_depth: '3'
 ---
-
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
 ***
 
 Last Updated `r format(Sys.time(), '%m/%d/%Y')`.

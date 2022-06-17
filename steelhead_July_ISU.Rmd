@@ -13,6 +13,12 @@ output:
     toc: yes
     toc_depth: '3'
 ---
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
 
 ***
 
@@ -81,7 +87,7 @@ covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
 #forecasting params
 #==================
 leave_yrs<- 15
-covariates<-c("lag1_log_SAR1", "lag2_NPGO","lag1_log_SAR2","lag1_NPGO")
+covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
