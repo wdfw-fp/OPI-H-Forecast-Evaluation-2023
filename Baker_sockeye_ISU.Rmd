@@ -1,0 +1,242 @@
+---
+title: Baker River Sockeye Inseason Forecast for Counts 5/1-12/31 @ Lower Baker Dam
+author: Thomas Buehrens (tbuehrens@dfw.wa.gov) & Casey Ruff (cruff@swinomish.nsn.us)
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
+***
+
+Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
+
+***
+
+# Overview
+This script fits Seasonal Auto-Regressive Integrated Moving Average (SARIMA) models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
+
+<!-- ## Setup -->
+<!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
+```{r set_options, echo = TRUE, message = FALSE}
+options(width = 100)
+knitr::opts_chunk$set(message = FALSE)
+set.seed(123)
+```
+
+<!-- We also need a couple of helper functions which we will define -->
+```{r load_funcs, message = FALSE, warning = FALSE,results = "hide"}
+wd_functions<-"functions"
+sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
+```
+
+<!-- Here we will load & install packages we need to use (needs internet connection if packages not already installed) -->
+```{r load_packages, message = FALSE, warning = FALSE,results = "hide"}
+packages_list<-c("tidyverse"
+                 ,"forecast"
+                 ,"mgcv"
+                 ,"ggplot2"
+                 ,"MASS"
+                 ,"RColorBrewer"
+                 ,"kableExtra"
+                 ,"lubridate"
+                 ,"modelr"
+                 ,"kableExtra"
+                 ,"reshape2"
+                 ,"ggfortify"
+                 ,"clock"
+                 ,"smooth"
+                 ,"scales"
+                 ,"here"
+                 )
+install_or_load_pack(pack = packages_list)
+```
+
+## User Inputs 
+Look at this section to see user inputs regarding the years and dates of data analyzed and covariates used.
+```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
+#=========
+# Raw Data
+#=========
+yr_start<-1992
+yr_end<-year(Sys.Date())-1
+dam="Baker"
+species="Sock"
+#===========================
+# Summarization for analysis
+#===========================
+date_start_analysis<-ymd("1992/6/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2021/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
+#==================
+#forecasting params
+#==================
+leave_yrs<- 11
+covariates<-c("lag2_NPGO")#"zl_flow",,"lag1_log_SAR2","lag1_log_SAR1","lag2_PDO","lag1_NPGO","pink_ind","pink_ind","lag2_NPGO",
+plot_results = F
+first_forecast_period = 2
+write_model_summaries = TRUE
+```
+
+## Get Raw Data
+Data is loaded here a a snapshot of the data used in the analysis (before aggregation into the two periods described) is provided.
+```{r get_data, message=FALSE, warning=FALSE, results="show"}
+
+dat<-read_csv(here("data","tbl_totalSockeyeCountByArea.csv"))%>%
+  pivot_longer(-c("ID","CountDate","Comment"),names_to = "location",values_to = "count")%>%
+  mutate(date=mdy(CountDate),year=year(date))%>%
+  group_by(date,year)%>%
+  summarise(abundance=sum(count), .groups = "keep")%>%
+  mutate(species=ifelse(abundance >= 0,"Sockeye","Sockeye"))%>%
+  filter(date <= as.Date("2021-07-09"))
+
+#=========================================================
+#get PDO data
+#=========================================================
+PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=1,col_names=F,comment="#")%>%
+  dplyr::rename(Date=X1,PDO=X2)%>%
+  filter(!PDO < -99)%>%
+  mutate(Date=as.Date(Date),Month=month(Date),Year=year(Date))%>%
+  group_by(Year)%>%
+  add_tally()%>%
+  #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
+  #filter(!n < 12)%>% #use only complete years
+  group_by(Year)%>%
+  dplyr::summarise(PDO=mean(PDO))%>%
+  mutate(lag2_PDO = lag(PDO,2), lag1_PDO = lag(PDO,1))%>%
+  dplyr::select(year=Year,lag2_PDO, lag1_PDO)
+#=========================================================
+#get NPGO data
+#=========================================================
+NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment="#")%>%
+  filter(!is.na(X2))%>%
+  dplyr::rename(Year=X1,Month=X2,NPGO=X3)%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Year)%>%
+  add_tally()%>%
+  #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
+  filter(!n < 12)%>% #use only complete years
+  group_by(Year)%>%
+  dplyr::summarise(NPGO=mean(NPGO))%>%
+  mutate(Year=Year+1, lag1_NPGO = NPGO,lag2_NPGO = lag(NPGO))%>%
+  dplyr::select(year=Year,lag1_NPGO,lag2_NPGO)
+#=========================================================
+#get Salmon Ocean Abundance Data
+#=========================================================
+OceanSalmon<-read_csv("https://raw.githubusercontent.com/tbuehrens/Salmon_Forecast_Example/main/data/pink_covariates_1952-2020.csv")%>%
+  dplyr::rename(Year=year)%>%
+  mutate(log_tot_pk_num = log(tot_pk_num))%>%
+  dplyr::select(year=Year,log_tot_pk_num)
+#=========================================================
+#get PIT tag survival/age data
+#=========================================================
+# PIT<-read_csv("data/Columbia_Sockeye_SAR_DART_6_10_2022.csv")%>%
+#   dplyr::rename(OutmigrationYear=year)%>%
+#   mutate(Year=OutmigrationYear+2)%>%
+#   filter(Pop=="SNA")
+# 
+# PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)~s(OutmigrationYear,k=(dim(PIT)[1]),m=1,bs="ps"),family=binomial,data=PIT)$fitted))%>%
+#   bind_cols(data.frame(SAR2=c(gam(cbind(ocean2Count,juvCount-ocean2Count)~s(OutmigrationYear,k=(dim(PIT)[1]-1),m=1,bs="ps"),family=binomial,data=PIT)$fitted,NA)))%>%
+#   mutate(lag1_log_SAR1 = log(SAR1),lag1_log_SAR2=lag(log(SAR2),1))%>%
+#   dplyr::select(year=Year,lag1_log_SAR1,lag1_log_SAR2)
+#=========================================================
+#get flow data (might affect timing)
+#=========================================================
+# flow_site<-14128870
+# flow_url <- paste0("https://waterdata.usgs.gov/nwis/dv?cb_00065=on&format=rdb&site_no=",flow_site,
+#                    "&referred_module=sw&period=&begin_date=",yr_start,"-01-01",
+#                    "&end_date=",yr_end,"-12-31")
+# flow<-readr::read_delim(flow_url,comment = '#')%>%
+#   filter(agency_cd=="USGS")%>%
+#   dplyr::rename(date=datetime,stage_height=`113489_00065_00003`)%>%
+#   dplyr::select(date,stage_height)%>%
+#   mutate(stage_height = as.numeric(stage_height))
+# 
+# flow<-flow%>%
+#   mutate(year=year(date),month=month(date),yday=yday(date))%>%
+#   filter(yday <= yday(max(dat$date)) & yday >= yday(max(dat$date)-6))%>%
+#   group_by(year)%>%
+#   dplyr::summarise(zl_flow=mean(stage_height,na.rm=T), .groups = "keep")%>%
+#   ungroup()%>%
+#   mutate(zl_flow=scale(zl_flow))
+
+#================================================================
+dat<-dat%>%
+  left_join(PDO)%>%
+  left_join(NPGO)%>%
+  left_join(OceanSalmon)%>%
+  #left_join(PIT)%>%
+  #left_join(flow)%>%
+  mutate(pink_ind = ifelse(year< 1999 | year%%2==0,0,1))
+
+print(head(dat))
+```
+
+<!-- ## Summarize Data for Analysis -->
+```{r summarize_data, message=FALSE, warning=FALSE, results="show"}
+series<-prepare_data(series = dat,
+                  date_start_analysis = date_start_analysis,
+                  date_end_analysis = date_end_analysis,
+                  forecast_period_start_m = forecast_period_start_m, #inclusive 
+                  forecast_period_start_d = forecast_period_start_d, #inclusive
+                  use_freshest_data = use_freshest_data,
+                  covariates = covariates
+                  )
+
+# series$series<-series$series%>%
+#   mutate(zl_flow = ifelse(period==1,zl_flow,0))
+
+
+```
+
+## Results
+This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
+```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
+results<-inseason_forecast(series$series,
+                  leave_yrs,
+                  covariates,
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  obs_period_2 = series$obs_period_2
+                  )
+
+p_2_start_m<-series$p_2_start_m
+p_2_start_d<-series$p_2_start_d
+
+
+results%>%
+  ungroup()%>%
+  dplyr::select(!c("period","train_test"))%>%
+  kbl(caption = paste0("Table 2. Forecasts of ",dam," dam counts of ",species, " from ",forecast_period_start_m,"/",forecast_period_start_d,"-",month(date_end_analysis),"/",mday(date_end_analysis)," using only past years' data for the forecast period and in-season counts from ", month(date_start_analysis),"/",mday(date_start_analysis)," through ", month(max(dat$date)),"/",mday(max(dat$date)), " in each year. Additional covariates are included in the table below."),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
+print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",exp(mean(abs(log((results$error/results$abundance)*100)),na.rm = T))))
+
+p<-ggplot(results,aes(x=year,y=predicted_abundance))+
+  geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
+  geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
+  geom_line()+
+  geom_point(aes(x=year,y=abundance))+
+  ylim(0,NA)+
+  scale_x_continuous(breaks=unique(results$year))
+
+print(p)
+```
