@@ -60,6 +60,8 @@ packages_list<-c("tidyverse"
                  ,"smooth"
                  ,"scales"
                  ,"here"
+                 ,"MuMIn"
+                 ,"CombMSC"
                  )
 install_or_load_pack(pack = packages_list)
 ```
@@ -87,7 +89,7 @@ last_data<-as.Date("2021-07-12")
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","zl_flow") # "lag1_PDO","lag1_NPGO","lag2_PDO",,"pink_ind","zl_flow","lag1_log_SAR1"
+covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","zl_flow", "lag1_PDO","lag1_NPGO","lag2_PDO","pink_ind","lag1_log_SAR1")
 p1_covariates_only=c("zl_flow")
 plot_results = F
 first_forecast_period = 2
@@ -182,7 +184,7 @@ flow<-flow%>%
   group_by(year)%>%
   dplyr::summarise(zl_flow=mean(log(CFS),na.rm=T), .groups = "keep")%>%
   ungroup()%>%
-  mutate(zl_flow=scale(zl_flow))
+  mutate(zl_flow=as.vector(scale(zl_flow)))
 
 #================================================================
 dat<-dat%>%
@@ -229,9 +231,18 @@ series<-prepare_data(series = dat,
 ## Results
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
+# best_covariates<-all_subsets(series=series$series,covariates=covariates,min=0,max=5)
+# 
+# best_covariates[[2]]%>%
+#   slice(1:10)%>%
+#   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
+#   kable_classic(full_width = F, html_font = "Cambria")
+
+#best_covariates[[1]][[best_covariates[[2]]$model_num[1]]]
+
 results<-inseason_forecast(series$series,
-                  leave_yrs,
-                  covariates,
+                  leave_yrs=leave_yrs,
+                  covariates= c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","zl_flow"), #use to automate variable selection: best_covariates[[1]][[best_covariates[[2]]$model_num[1]]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,

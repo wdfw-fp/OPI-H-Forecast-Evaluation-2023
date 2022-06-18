@@ -14,6 +14,16 @@ inseason_forecast<-function(series,
     write.table(NULL,"summary.txt")
   }
   
+  series<-series%>%
+    ungroup()%>%
+    dplyr::select(year,species,period,abundance,all_of(covariates))%>%
+    filter(
+      across(
+        .cols = all_of(covariates),
+        .fns = ~ !is.na(.x)
+      )
+    )
+  
   for(i in 1:leave_yrs){
     last_train_yr = max(series$year) - (leave_yrs-i+1)
     tdat<-series%>%

@@ -54,6 +54,10 @@ prepare_data<-function(series,
   # if(length(p1_covariates_only)>0){
   #   series[series$period==2,colnames(series)%in%p1_covariates_only]<-series[series$period==1,colnames(series)%in%p1_covariates_only]*-1
   # }
+  if(length(p1_covariates_only)>0){
+    series[series$period==2,colnames(series)%in%p1_covariates_only]<-series[series$period==2,colnames(series)%in%p1_covariates_only] * -1
+  }
+  
   
   out<-list(series = series, p_2_start_m = p_2_start_m, p_2_start_d = p_2_start_d, obs_period_2 = obs_period_2)
   
