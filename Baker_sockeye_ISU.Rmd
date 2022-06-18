@@ -87,7 +87,7 @@ last_data<-as.Date("2021-07-12")
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts") # "lag1_PDO","lag1_NPGO","lag2_PDO",,"pink_ind","zl_flow","lag1_log_SAR1"
+covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","zl_flow") # "lag1_PDO","lag1_NPGO","lag2_PDO",,"pink_ind","zl_flow","lag1_log_SAR1"
 p1_covariates_only=c("zl_flow")
 plot_results = F
 first_forecast_period = 2
@@ -254,7 +254,7 @@ results%>%
 
 
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
-print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)))
+print(paste0("Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)))
 
 
 p<-ggplot(results,aes(x=year,y=predicted_abundance))+

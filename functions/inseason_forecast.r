@@ -41,7 +41,7 @@ inseason_forecast<-function(series,
     }
     
     if(length(p1_covariates_only)>0){
-      tdat[tdat$period==2,colnames(tdat)%in%p1_covariates_only]<-0
+      tdat[tdat$period==2,colnames(tdat)%in%p1_covariates_only]<-tdat[tdat$period==1,colnames(tdat)%in%p1_covariates_only]*-1
     }
     
     xreg<-tdat%>%
