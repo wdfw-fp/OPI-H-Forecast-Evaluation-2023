@@ -85,7 +85,8 @@ use_freshest_data = T #use all data up to "today" or only up to beginning of for
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("pink_ind","lag1_log_SAR1")#"zl_flow","lag2_NPGO","lag2_PDO","lag1_log_SAR2","lag1_NPGO","lag1_PDO")
+covariates<-c("pink_ind","lag1_log_SAR1","zl_flow")#,"lag2_NPGO","lag2_PDO","lag1_log_SAR2","lag1_NPGO","lag1_PDO")
+p1_covariates_only =c("zl_flow")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
@@ -192,7 +193,9 @@ series<-prepare_data(series = dat,
                   forecast_period_start_m = forecast_period_start_m, #inclusive 
                   forecast_period_start_d = forecast_period_start_d, #inclusive
                   use_freshest_data = use_freshest_data,
-                  covariates = covariates
+                  covariates = covariates,
+                  p1_covariates_only=p1_covariates_only
+                  
                   )
 
 # series$series<-series$series%>%
@@ -212,7 +215,8 @@ results<-inseason_forecast(series$series,
                   write_model_summaries = write_model_summaries,
                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  obs_period_2 = series$obs_period_2
+                  obs_period_2 = series$obs_period_2,
+                  p1_covariates_only=p1_covariates_only
                   )
 
 p_2_start_m<-series$p_2_start_m
@@ -226,7 +230,7 @@ results%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
-print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",exp(mean(abs(log((results$error/results$abundance)*100)),na.rm = T))))
+print(paste0("Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)))
 
 p<-ggplot(results,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+

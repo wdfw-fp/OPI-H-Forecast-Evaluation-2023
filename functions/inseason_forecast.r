@@ -7,7 +7,8 @@ inseason_forecast<-function(series,
                             write_model_summaries,
                             forecast_period_start_m, #inclusive
                             forecast_period_start_d, #inclusive
-                            obs_period_2
+                            obs_period_2,
+                            p1_covariates_only
                             ){
   if(write_model_summaries ==T){
     write.table(NULL,"summary.txt")
@@ -37,6 +38,10 @@ inseason_forecast<-function(series,
       adddat$train_test<-1
       tdat<-tdat%>%
         bind_rows(adddat)
+    }
+    
+    if(length(p1_covariates_only)>0){
+      tdat[tdat$period==2,colnames(tdat)%in%p1_covariates_only]<-0
     }
     
     xreg<-tdat%>%

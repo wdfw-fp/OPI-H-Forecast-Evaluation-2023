@@ -82,11 +82,13 @@ date_end_analysis<-ymd("2021/12/31") #this will be the last date of data used in
 forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
+last_data<-as.Date("2021-07-12")
 #==================
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("lag2_NPGO")#"zl_flow",,"lag1_log_SAR2","lag1_log_SAR1","lag2_PDO","lag1_NPGO","pink_ind","pink_ind","lag2_NPGO",
+covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts") # "lag1_PDO","lag1_NPGO","lag2_PDO",,"pink_ind","zl_flow","lag1_log_SAR1"
+p1_covariates_only=c("zl_flow")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
@@ -102,7 +104,7 @@ dat<-read_csv(here("data","tbl_totalSockeyeCountByArea.csv"))%>%
   group_by(date,year)%>%
   summarise(abundance=sum(count), .groups = "keep")%>%
   mutate(species=ifelse(abundance >= 0,"Sockeye","Sockeye"))%>%
-  filter(date <= as.Date("2021-07-09"))
+  filter(!is.na(date))
 
 #=========================================================
 #get PDO data
@@ -142,46 +144,70 @@ OceanSalmon<-read_csv("https://raw.githubusercontent.com/tbuehrens/Salmon_Foreca
   mutate(log_tot_pk_num = log(tot_pk_num))%>%
   dplyr::select(year=Year,log_tot_pk_num)
 #=========================================================
-#get PIT tag survival/age data
+#get SAR survival/age data
 #=========================================================
-# PIT<-read_csv("data/Columbia_Sockeye_SAR_DART_6_10_2022.csv")%>%
-#   dplyr::rename(OutmigrationYear=year)%>%
-#   mutate(Year=OutmigrationYear+2)%>%
-#   filter(Pop=="SNA")
-# 
-# PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)~s(OutmigrationYear,k=(dim(PIT)[1]),m=1,bs="ps"),family=binomial,data=PIT)$fitted))%>%
-#   bind_cols(data.frame(SAR2=c(gam(cbind(ocean2Count,juvCount-ocean2Count)~s(OutmigrationYear,k=(dim(PIT)[1]-1),m=1,bs="ps"),family=binomial,data=PIT)$fitted,NA)))%>%
-#   mutate(lag1_log_SAR1 = log(SAR1),lag1_log_SAR2=lag(log(SAR2),1))%>%
-#   dplyr::select(year=Year,lag1_log_SAR1,lag1_log_SAR2)
+SAR<-read_csv(here("data","baker_sockeye_SAR.csv"))%>%
+  filter(Year<2021)
+  
+
+SAR<-SAR%>%bind_cols(SAR1=data.frame(SAR1=gam(cbind(round(OA1_Recruits),smolts-round(OA1_Recruits))~s(Year,k=(dim(SAR)[1]),m=1,bs="ps"),family=quasibinomial,data=SAR)$fitted))%>%
+  bind_cols(SAR2=data.frame(SAR2=c(NA,gam(cbind(round(OA2_Recruits),smolts-round(OA2_Recruits))~s(Year,k=(dim(SAR)[1]-1),m=1,bs="ps"),family=quasibinomial,data=SAR)$fitted)))%>%
+  mutate(year=Year+2,lag1_log_SAR1 = lag(log(SAR1),1),lag1_log_SAR2=log(SAR2))%>%
+  dplyr::select(year=year,lag1_log_SAR1,lag1_log_SAR2)
+
+#=========================================================
+#get smolts
+#=========================================================
+Smolts<-read_csv(here("data","baker_sockeye_SAR.csv"))%>%
+  dplyr::mutate(year=Year+2,lag2_log_smolts=log(smolts))%>%
+  dplyr::select(year,lag2_log_smolts)
+
+
 #=========================================================
 #get flow data (might affect timing)
 #=========================================================
-# flow_site<-14128870
-# flow_url <- paste0("https://waterdata.usgs.gov/nwis/dv?cb_00065=on&format=rdb&site_no=",flow_site,
-#                    "&referred_module=sw&period=&begin_date=",yr_start,"-01-01",
-#                    "&end_date=",yr_end,"-12-31")
-# flow<-readr::read_delim(flow_url,comment = '#')%>%
-#   filter(agency_cd=="USGS")%>%
-#   dplyr::rename(date=datetime,stage_height=`113489_00065_00003`)%>%
-#   dplyr::select(date,stage_height)%>%
-#   mutate(stage_height = as.numeric(stage_height))
-# 
-# flow<-flow%>%
-#   mutate(year=year(date),month=month(date),yday=yday(date))%>%
-#   filter(yday <= yday(max(dat$date)) & yday >= yday(max(dat$date)-6))%>%
-#   group_by(year)%>%
-#   dplyr::summarise(zl_flow=mean(stage_height,na.rm=T), .groups = "keep")%>%
-#   ungroup()%>%
-#   mutate(zl_flow=scale(zl_flow))
+flow_site<-12200500
+flow_url <- paste0("https://waterdata.usgs.gov/nwis/dv?&format=rdb&site_no=",flow_site,
+                   "&period=&begin_date=",yr_start,"-01-01",
+                   "&end_date=",yr_end,"-12-31")
+flow<-readr::read_delim(flow_url,comment = '#')%>%
+  filter(agency_cd=="USGS")%>%
+  dplyr::rename(date=datetime,CFS=`149429_00060_00003`)%>%
+  dplyr::select(date,CFS)%>%
+  mutate(date=ymd(date),CFS = as.numeric(CFS))
+
+flow<-flow%>%
+  mutate(year=year(date),month=month(date),yday=yday(date))%>%
+  filter(yday <= yday(last_data) & yday >= yday(last_data-13))%>%
+  group_by(year)%>%
+  dplyr::summarise(zl_flow=mean(log(CFS),na.rm=T), .groups = "keep")%>%
+  ungroup()%>%
+  mutate(zl_flow=scale(zl_flow))
 
 #================================================================
 dat<-dat%>%
   left_join(PDO)%>%
   left_join(NPGO)%>%
   left_join(OceanSalmon)%>%
-  #left_join(PIT)%>%
-  #left_join(flow)%>%
+  left_join(SAR)%>%
+  left_join(Smolts)%>%
+  left_join(flow)%>%
   mutate(pink_ind = ifelse(year< 1999 | year%%2==0,0,1))
+
+timing<-dat%>%
+  mutate(yday=yday(date))%>%
+  group_by(year)%>%
+  mutate(cumpct=cumsum(abundance)/sum(abundance),diff50=abs(0.5-cumpct),date50=ifelse(diff50==min(diff50),1,0))%>%
+  filter(date50==1)
+
+ggplot(timing,aes(x=year,y=yday))+
+  geom_line()+
+  geom_point()+
+  ylab("Day of Year 50% of Run @ Trap")
+
+
+dat<-dat%>%
+  filter(date <= last_data)
 
 print(head(dat))
 ```
@@ -194,12 +220,9 @@ series<-prepare_data(series = dat,
                   forecast_period_start_m = forecast_period_start_m, #inclusive 
                   forecast_period_start_d = forecast_period_start_d, #inclusive
                   use_freshest_data = use_freshest_data,
-                  covariates = covariates
+                  covariates = covariates,
+                  p1_covariates_only = p1_covariates_only
                   )
-
-# series$series<-series$series%>%
-#   mutate(zl_flow = ifelse(period==1,zl_flow,0))
-
 
 ```
 
@@ -214,8 +237,10 @@ results<-inseason_forecast(series$series,
                   write_model_summaries = write_model_summaries,
                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  obs_period_2 = series$obs_period_2
+                  obs_period_2 = series$obs_period_2,
+                  p1_covariates_only = p1_covariates_only
                   )
+
 
 p_2_start_m<-series$p_2_start_m
 p_2_start_d<-series$p_2_start_d
@@ -224,11 +249,13 @@ p_2_start_d<-series$p_2_start_d
 results%>%
   ungroup()%>%
   dplyr::select(!c("period","train_test"))%>%
-  kbl(caption = paste0("Table 2. Forecasts of ",dam," dam counts of ",species, " from ",forecast_period_start_m,"/",forecast_period_start_d,"-",month(date_end_analysis),"/",mday(date_end_analysis)," using only past years' data for the forecast period and in-season counts from ", month(date_start_analysis),"/",mday(date_start_analysis)," through ", month(max(dat$date)),"/",mday(max(dat$date)), " in each year. Additional covariates are included in the table below."),digits =2)%>%
+  kbl(caption = paste0("Table 2. Forecasts of ",dam," dam counts of ",species, " from ",forecast_period_start_m,"/",forecast_period_start_d,"-",month(date_end_analysis),"/",mday(date_end_analysis)," using only past years' data for the forecast period and in-season counts from ", month(date_start_analysis),"/",mday(date_start_analysis)," through ", month(max(dat$date)),"/",mday(max(dat$date)), " in each year. Additional covariates are included in the table below."),digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
+
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
-print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",exp(mean(abs(log((results$error/results$abundance)*100)),na.rm = T))))
+print(paste0("Geomean Absolute Percent Error (also known as Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)))
+
 
 p<-ggplot(results,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+

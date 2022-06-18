@@ -6,7 +6,8 @@ prepare_data<-function(series,
                        forecast_period_start_m, #inclusive 
                        forecast_period_start_d, #inclusive
                        use_freshest_data,
-                       covariates
+                       covariates,
+                       p1_covariates_only
 ){
   
   
@@ -49,6 +50,10 @@ prepare_data<-function(series,
   series<-series%>%
     dplyr::group_by_at(c("year","species","period",all_of(covariates)))%>%
     summarize(abundance=sum(abundance),.groups="keep")
+  
+  if(length(p1_covariates_only)>0){
+    series[series$period==2,colnames(series)%in%p1_covariates_only]<-0
+  }
   
   out<-list(series = series, p_2_start_m = p_2_start_m, p_2_start_d = p_2_start_d, obs_period_2 = obs_period_2)
   
