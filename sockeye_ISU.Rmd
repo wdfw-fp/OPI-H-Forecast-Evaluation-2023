@@ -81,11 +81,12 @@ date_end_analysis<-ymd("2022/12/31") #this will be the last date of data used in
 forecast_period_start_m<-5 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
+last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
 leave_yrs<- 11
-covariates<-c("pink_ind","lag1_log_SAR1","zl_flow")#,"lag2_NPGO","lag2_PDO","lag1_log_SAR2","lag1_NPGO","lag1_PDO")
+covariates<-c("pink_ind","lag1_log_SAR1","zl_flow","lag2_NPGO","lag2_PDO","lag1_log_SAR2","lag1_NPGO","lag1_PDO")
 p1_covariates_only =c("zl_flow")
 plot_results = F
 first_forecast_period = 2
@@ -171,7 +172,7 @@ flow<-flow%>%
   group_by(year)%>%
   dplyr::summarise(zl_flow=mean(stage_height,na.rm=T), .groups = "keep")%>%
   ungroup()%>%
-  mutate(zl_flow=scale(zl_flow))
+  mutate(zl_flow=as.vector(scale(zl_flow)))
 
 #================================================================
 dat<-dat%>%
@@ -198,18 +199,27 @@ series<-prepare_data(series = dat,
                   
                   )
 
-# series$series<-series$series%>%
-#   mutate(zl_flow = ifelse(period==1,zl_flow,0))
-
-
 ```
 
 ## Results
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
+# best_covariates<-all_subsets(series=series$series,covariates=covariates,min=0,max=5)
+# 
+# best_covariates[[2]]%>%
+#   slice(1:10)%>%
+#   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
+#   kable_classic(full_width = F, html_font = "Cambria")
+
+#best_covariates[[1]][[best_covariates[[2]]$model_num[1]]]
+
+
+
+
+
 results<-inseason_forecast(series$series,
                   leave_yrs,
-                  covariates,
+                  covariates = c("pink_ind","lag1_log_SAR1"),#"lag1_NPGO","zl_flow"),  #best_covariates[[1]][[best_covariates[[2]]$model_num[1]]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
