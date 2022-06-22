@@ -1,5 +1,5 @@
 ---
-title: Baker River Sockeye Inseason Forecast for Counts 6/1-12/31 @ Lower Baker Dam
+title: Baker River Sockeye Run-Size In-Season Update
 author: Thomas Buehrens (tbuehrens@dfw.wa.gov) & Casey Ruff (cruff@swinomish.nsn.us)
 output:
   html_document:
@@ -72,8 +72,7 @@ packages_list<-c("tidyverse"
                  )
 install_or_load_pack(pack = packages_list)
 ```
-
-## User Inputs 
+<!-- ## User Inputs -->
 Look at this section to see user inputs regarding the years and dates of data analyzed and covariates used.
 ```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
 #=========
@@ -103,8 +102,8 @@ first_forecast_period = 2
 write_model_summaries = TRUE
 ```
 
-## Get Raw Data
-Data is loaded here a a snapshot of the data used in the analysis (before aggregation into the two periods described) is provided.
+<!-- ## Get Raw Data -->
+In this section, data used in the analysis is loaded. Here a snapshot of the data (before aggregation into the two periods described in the overview).
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 
 dat<-read_csv(here("data","tbl_totalSockeyeCountByArea.csv"))%>%
