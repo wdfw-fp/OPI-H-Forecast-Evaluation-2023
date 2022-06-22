@@ -88,9 +88,9 @@ last_data<-as.Date("2021-07-20")
 #==================
 #forecasting params
 #==================
-leave_yrs<- 11
-covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow", "lag1_PDO","lag1_NPGO","lag2_PDO","pink_ind","lag1_log_SAR1")
-p1_covariates_only=c("var_flow")
+leave_yrs<- 10#11
+covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow", "lag1_PDO","lag1_NPGO","lag2_PDO","pink_ind","lag1_log_SAR1","zl_flow")
+p1_covariates_only=c("var_flow","zl_flow")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
@@ -252,8 +252,8 @@ series<-prepare_data(series = dat,
 ## Results
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
-# best_covariates<-all_subsets(series=series$series,covariates=covariates,min=0,max=5)
-# 
+#best_covariates<-all_subsets(series=series$series,covariates=covariates,min=0,max=5)
+
 # best_covariates[[2]]%>%
 #   slice(1:10)%>%
 #   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
@@ -263,7 +263,7 @@ This section present a a results table showing the performance of the prediction
 
 results<-inseason_forecast(series$series,
                   leave_yrs=leave_yrs,
-                  covariates= c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow"), #use to automate variable selection: best_covariates[[1]][[best_covariates[[2]]$model_num[1]]],
+                  covariates= c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow","zl_flow"), #use to automate variable selection: best_covariates[[1]][[best_covariates[[2]]$model_num[1]]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
@@ -294,8 +294,11 @@ ISU_msa <- 100*(exp(median(abs(log(results$predicted_abundance/results$abundance
 
 ##load pre-season forecast performance table
 psf_performance <- read_csv("https://raw.githubusercontent.com/casruff/Salmon_Forecast_Example/test/sockeye_preseason_fcst_performance.csv")%>%
-  filter(Year %in% 2012:2020)%>%
-  rename(year = Year,predicted_abundance = Estimate)
+  filter(Year %in% 2012:2021)%>%
+  mutate(type="PSF")%>%
+  rename(year = Year,predicted_abundance = Estimate,`Lo 95` = L95,`Hi 95` = U95)%>%
+  mutate(`Lo 50` = exp(log(predicted_abundance)- 0.675 * sd), `Hi 50` = exp(log(predicted_abundance)+ 0.675 * sd))%>%
+  left_join(results%>%dplyr::select(year,abundance))
 
 ISU_performance <- results %>%
   filter(year %in% 2012:2020)
@@ -311,14 +314,20 @@ performance_comp %>%
 kbl(caption = paste0("Table 3. Comparison of forecast performance of ISU using catch and Baker dam counts versus stack weighted pre-season forecast for years 2012 - 2020."),digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
+
+results<-results%>%
+  mutate(type="ISU")%>%
+  bind_rows(psf_performance)
   
-p<-ggplot(results,aes(x=year,y=predicted_abundance))+ 
-  geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
-  geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
+p<-ggplot(results,aes(x=year,y=predicted_abundance,group=type))+ 
+  geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`,fill=type),color=NA,alpha=0.5)+
+  geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`,fill=type),color=NA,alpha=0.5)+
   geom_line()+
-  geom_line(data = psf_performance, color = "orange")+ 
+  #geom_line(data = psf_performance,mapping=aes(x=year,y=predicted_performance), color = "red")+ 
   geom_point(aes(x=year,y=abundance))+
-  scale_x_continuous(breaks=unique(results$year))
+  scale_x_continuous(breaks=unique(results$year))+
+  facet_wrap(~type,ncol=2)+
+  ylim(0,NA)
 
 print(p)
 ```
