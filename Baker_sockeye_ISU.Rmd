@@ -227,7 +227,8 @@ timing<-dat%>%
   mutate(yday=yday(date))%>%
   group_by(year)%>%
   mutate(cumpct=cumsum(abundance)/sum(abundance),diff50=abs(0.5-cumpct),date50=ifelse(diff50==min(diff50),1,0))%>%
-  filter(date50==1)
+  filter(date50==1)%>%
+  summarise(yday=mean(yday))
 
 dat<-dat%>%
   filter(date <= last_data)
