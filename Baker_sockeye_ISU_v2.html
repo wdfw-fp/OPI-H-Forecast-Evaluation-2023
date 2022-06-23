@@ -1682,8 +1682,8 @@ NA
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>ISU_pct_error &lt;- mean(abs((results_best$error/results$abundance)*100),na.rm = T) 
-ISU_msa &lt;- 100*(exp(median(abs(log(results_best$predicted_abundance/results$abundance)),na.rm = T))-1)
+<pre class="r"><code>ISU_pct_error &lt;- mean(abs((results_best$error/results_best$abundance)*100),na.rm = T) 
+ISU_msa &lt;- 100*(exp(median(abs(log(results_best$predicted_abundance/results_best$abundance)),na.rm = T))-1)
 
 
 ##load pre-season forecast performance table
@@ -1692,9 +1692,9 @@ psf_performance &lt;- read_csv(&quot;https://raw.githubusercontent.com/casruff/S
   mutate(type=&quot;PSF&quot;)%&gt;%
   rename(year = Year,predicted_abundance = Estimate,`Lo 95` = L95,`Hi 95` = U95)%&gt;%
   mutate(`Lo 50` = exp(log(predicted_abundance)- 0.675 * sd), `Hi 50` = exp(log(predicted_abundance)+ 0.675 * sd))%&gt;%
-  left_join(results%&gt;%dplyr::select(year,abundance))
+  left_join(results_best%&gt;%dplyr::select(year,abundance))
 
-ISU_performance &lt;- results %&gt;%
+ISU_performance &lt;- results_best %&gt;%
   filter(year %in% 2012:2020)
 
 psf_error &lt;- psf_performance$predicted_abundance - ISU_performance$abundance
@@ -1730,10 +1730,10 @@ MSA
 PSF
 </td>
 <td style="text-align:right;">
-41.351
+19.173
 </td>
 <td style="text-align:right;">
-43.877
+13.710
 </td>
 </tr>
 <tr>

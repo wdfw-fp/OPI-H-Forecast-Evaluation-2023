@@ -337,8 +337,8 @@ results_best%>%
 
 
 
-ISU_pct_error <- mean(abs((results_best$error/results$abundance)*100),na.rm = T) 
-ISU_msa <- 100*(exp(median(abs(log(results_best$predicted_abundance/results$abundance)),na.rm = T))-1)
+ISU_pct_error <- mean(abs((results_best$error/results_best$abundance)*100),na.rm = T) 
+ISU_msa <- 100*(exp(median(abs(log(results_best$predicted_abundance/results_best$abundance)),na.rm = T))-1)
 
 
 ##load pre-season forecast performance table
@@ -347,9 +347,9 @@ psf_performance <- read_csv("https://raw.githubusercontent.com/casruff/Salmon_Fo
   mutate(type="PSF")%>%
   rename(year = Year,predicted_abundance = Estimate,`Lo 95` = L95,`Hi 95` = U95)%>%
   mutate(`Lo 50` = exp(log(predicted_abundance)- 0.675 * sd), `Hi 50` = exp(log(predicted_abundance)+ 0.675 * sd))%>%
-  left_join(results%>%dplyr::select(year,abundance))
+  left_join(results_best%>%dplyr::select(year,abundance))
 
-ISU_performance <- results %>%
+ISU_performance <- results_best %>%
   filter(year %in% 2012:2020)
 
 psf_error <- psf_performance$predicted_abundance - ISU_performance$abundance
