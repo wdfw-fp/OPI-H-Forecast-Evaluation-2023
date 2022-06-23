@@ -211,6 +211,7 @@ model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],fu
 results%>%
   filter(year==max(year))%>%
   left_join(model_list)%>%
+  mutate(model_name = ifelse(is.na(Stacking_weight),"ensemble",model_name))%>%
   dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
   kbl(caption = "Table: Individual Ensemble Member Predictions and Weights",digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")

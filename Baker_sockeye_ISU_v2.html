@@ -538,32 +538,344 @@ results&lt;-inseason_forecast_v2(series=summarized_data$series,
                   obs_period_2 = summarized_data$obs_period_2,
                   p1_covariates_only = p1_covariates_only,
                   stack_metric = &quot;MSA&quot;
-                  )</code></pre>
-<pre><code>## # A tibble: 100 x 24
-##     year species period abundance lag2_NPGO lag1_log_SAR2 lag2_log_smolts lag1_log_SAR1 lag2_PDO
-##    &lt;dbl&gt; &lt;chr&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;         &lt;dbl&gt;           &lt;dbl&gt;         &lt;dbl&gt;    &lt;dbl&gt;
-##  1  2012 Sockeye      2     47971     1.37          -2.38            13.0         -7.83  -0.743 
-##  2  2013 Sockeye      2     17804     0.863         -2.56            12.3         -7.66  -1.57  
-##  3  2014 Sockeye      2     27143     1.48          -2.86            13.1         -8.06  -1.41  
-##  4  2015 Sockeye      2     51074     0.351         -2.91            13.5         -8.35  -0.926 
-##  5  2016 Sockeye      2     42910    -0.251         -2.92            13.8         -8.61   0.531 
-##  6  2017 Sockeye      2     33359    -1.40          -3.20            13.5         -9.00   0.801 
-##  7  2018 Sockeye      2     30904    -0.196         -3.38            13.6         -9.07   0.633 
-##  8  2019 Sockeye      2     22700    -0.862         -3.58            13.9         -9.04  -0.0593
-##  9  2020 Sockeye      2     19163    -1.91          -3.93            13.7         -9.15  -0.296 
-## 10  2021 Sockeye      2        NA    -2.25          -3.92            13.5         -9.01  -0.0288
-## # ... with 90 more rows, and 15 more variables: zl_flow &lt;dbl&gt;, var_flow &lt;dbl&gt;, lag1_NPGO &lt;dbl&gt;,
-## #   lag1_PDO &lt;dbl&gt;, pink_ind &lt;dbl&gt;, train_test &lt;dbl&gt;, predicted_abundance &lt;dbl&gt;, `Lo 50` &lt;dbl&gt;,
-## #   `Hi 50` &lt;dbl&gt;, `Lo 95` &lt;dbl&gt;, `Hi 95` &lt;dbl&gt;, obs_abundance &lt;dbl&gt;, error &lt;dbl&gt;, pct_error &lt;chr&gt;,
-## #   model &lt;chr&gt;</code></pre>
-<pre class="r"><code>if(length(unique(results$model))&gt;1){
-  results%&gt;%
-    filter(year==max(year))%&gt;%
-    dplyr::select(year,model,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%&gt;%
-    kbl(caption = &quot;Table: Individual Ensemble Member Predictions and Weights&quot;,digits =2)%&gt;%
-    kable_classic(full_width = F, html_font = &quot;Cambria&quot;)
+                  )
 
-  
+model_list&lt;-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],function(x) paste(x,collapse = &quot; + &quot;))%&gt;%
+  unlist()%&gt;%
+  as_tibble()%&gt;%
+  add_rownames()%&gt;%
+  dplyr::rename(model=rowname,model_name=value)
+
+results%&gt;%
+  filter(year==max(year))%&gt;%
+  left_join(model_list)%&gt;%
+  mutate(model_name = ifelse(is.na(Stacking_weight),&quot;ensemble&quot;,model_name))%&gt;%
+  dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%&gt;%
+  kbl(caption = &quot;Table: Individual Ensemble Member Predictions and Weights&quot;,digits =2)%&gt;%
+  kable_classic(full_width = F, html_font = &quot;Cambria&quot;)</code></pre>
+<table class=" lightable-classic" style="font-family: Cambria; width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+Table: Individual Ensemble Member Predictions and Weights
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+year
+</th>
+<th style="text-align:left;">
+model_name
+</th>
+<th style="text-align:right;">
+predicted_abundance
+</th>
+<th style="text-align:right;">
+Lo 50
+</th>
+<th style="text-align:right;">
+Hi 50
+</th>
+<th style="text-align:right;">
+Lo 95
+</th>
+<th style="text-align:right;">
+Hi 95
+</th>
+<th style="text-align:right;">
+Stacking_weight
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts
+</td>
+<td style="text-align:right;">
+19848.12
+</td>
+<td style="text-align:right;">
+17736.28
+</td>
+<td style="text-align:right;">
+23066.00
+</td>
+<td style="text-align:right;">
+15510.98
+</td>
+<td style="text-align:right;">
+34595.32
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + lag1_log_SAR1
+</td>
+<td style="text-align:right;">
+19501.76
+</td>
+<td style="text-align:right;">
+17510.72
+</td>
+<td style="text-align:right;">
+22534.17
+</td>
+<td style="text-align:right;">
+15411.40
+</td>
+<td style="text-align:right;">
+33391.23
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag1_log_SAR2 + lag2_log_smolts + lag2_PDO
+</td>
+<td style="text-align:right;">
+22010.95
+</td>
+<td style="text-align:right;">
+19126.78
+</td>
+<td style="text-align:right;">
+26429.09
+</td>
+<td style="text-align:right;">
+16109.59
+</td>
+<td style="text-align:right;">
+42389.37
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + zl_flow
+</td>
+<td style="text-align:right;">
+20086.06
+</td>
+<td style="text-align:right;">
+17887.69
+</td>
+<td style="text-align:right;">
+23439.58
+</td>
+<td style="text-align:right;">
+15574.79
+</td>
+<td style="text-align:right;">
+35475.87
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + var_flow + zl_flow
+</td>
+<td style="text-align:right;">
+19292.80
+</td>
+<td style="text-align:right;">
+17387.27
+</td>
+<td style="text-align:right;">
+22184.15
+</td>
+<td style="text-align:right;">
+15367.85
+</td>
+<td style="text-align:right;">
+32476.59
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag1_log_SAR2 + lag2_log_smolts + lag1_NPGO
+</td>
+<td style="text-align:right;">
+20452.03
+</td>
+<td style="text-align:right;">
+18099.58
+</td>
+<td style="text-align:right;">
+24063.49
+</td>
+<td style="text-align:right;">
+15645.87
+</td>
+<td style="text-align:right;">
+37153.49
+</td>
+<td style="text-align:right;">
+0.03
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + lag1_PDO
+</td>
+<td style="text-align:right;">
+20535.79
+</td>
+<td style="text-align:right;">
+18177.05
+</td>
+<td style="text-align:right;">
+24138.36
+</td>
+<td style="text-align:right;">
+15699.53
+</td>
+<td style="text-align:right;">
+37092.95
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + lag2_PDO
+</td>
+<td style="text-align:right;">
+20298.51
+</td>
+<td style="text-align:right;">
+18020.76
+</td>
+<td style="text-align:right;">
+23778.10
+</td>
+<td style="text-align:right;">
+15629.03
+</td>
+<td style="text-align:right;">
+36294.62
+</td>
+<td style="text-align:right;">
+0.10
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + pink_ind
+</td>
+<td style="text-align:right;">
+19594.24
+</td>
+<td style="text-align:right;">
+17556.83
+</td>
+<td style="text-align:right;">
+22709.06
+</td>
+<td style="text-align:right;">
+15419.65
+</td>
+<td style="text-align:right;">
+33926.57
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+lag2_NPGO + lag1_log_SAR2 + lag2_log_smolts + var_flow
+</td>
+<td style="text-align:right;">
+19598.81
+</td>
+<td style="text-align:right;">
+17559.32
+</td>
+<td style="text-align:right;">
+22717.19
+</td>
+<td style="text-align:right;">
+15420.35
+</td>
+<td style="text-align:right;">
+33949.72
+</td>
+<td style="text-align:right;">
+0.87
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2021
+</td>
+<td style="text-align:left;">
+ensemble
+</td>
+<td style="text-align:right;">
+19697.14
+</td>
+<td style="text-align:right;">
+17623.46
+</td>
+<td style="text-align:right;">
+22867.94
+</td>
+<td style="text-align:right;">
+15448.76
+</td>
+<td style="text-align:right;">
+34290.14
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>if(length(unique(results$model))&gt;1){
+
   results_best&lt;-results%&gt;%
     ungroup()%&gt;%
     filter(model ==&quot;ensemble&quot;)
