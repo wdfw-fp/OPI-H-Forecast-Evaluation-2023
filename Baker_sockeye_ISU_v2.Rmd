@@ -261,14 +261,19 @@ summarized_data<-prepare_data(series = dat,
 ## Results
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
-best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=5)
+# if(find_best ==T){
+#   best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=5)
+#   
+#   best_covariates[[2]]%>%
+#   slice(1:10)%>%
+#   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
+#   kable_classic(full_width = F, html_font = "Cambria")
+#   
+#   saveRDS(best_covariates,"best_covariates_Baker.rds")
+# }
 
-best_covariates[[2]]%>%
-  slice(1:10)%>%
-  kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
-  kable_classic(full_width = F, html_font = "Cambria")
 
-best_covariates[[1]][[best_covariates[[2]]$model_num[1]]]
+best_covariates<-readRDS("best_covariates_Baker.rds")
 
 # results<-inseason_forecast(series=summarized_data$series,
 #                   leave_yrs=leave_yrs,

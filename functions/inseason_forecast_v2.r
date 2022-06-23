@@ -20,7 +20,7 @@ inseason_forecast_v2<-function(series,
     dplyr::select(year,species,period,abundance,all_of(unique(unlist(covariates))))%>%
     filter(
       across(
-        .cols = all_of(covariates[[c]]),
+        .cols = all_of(unique(unlist(covariates))),
         .fns = ~ !is.na(.x)
       )
     )
@@ -153,6 +153,7 @@ inseason_forecast_v2<-function(series,
   modelcnt<-length(unique(forecasts$model))
   
   stackdat<-forecasts%>%
+    ungroup()%>%
     dplyr::select(year,abundance,predicted_abundance,model)%>%
     filter(!is.na(abundance))%>%
     pivot_wider(names_from = model,values_from = predicted_abundance)
