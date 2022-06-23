@@ -557,16 +557,25 @@ results&lt;-inseason_forecast_v2(series=summarized_data$series,
 ## #   `Hi 50` &lt;dbl&gt;, `Lo 95` &lt;dbl&gt;, `Hi 95` &lt;dbl&gt;, obs_abundance &lt;dbl&gt;, error &lt;dbl&gt;, pct_error &lt;chr&gt;,
 ## #   model &lt;chr&gt;</code></pre>
 <pre class="r"><code>if(length(unique(results$model))&gt;1){
-  results&lt;-results%&gt;%
+  results%&gt;%
+    filter(year==max(year))%&gt;%
+    dplyr::select(year,model,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%&gt;%
+    kbl(caption = &quot;Table: Individual Ensemble Member Predictions and Weights&quot;,digits =2)%&gt;%
+    kable_classic(full_width = F, html_font = &quot;Cambria&quot;)
+
+  
+  results_best&lt;-results%&gt;%
+    ungroup()%&gt;%
     filter(model ==&quot;ensemble&quot;)
 }
+
 
 
 p_2_start_m&lt;-summarized_data$p_2_start_m
 p_2_start_d&lt;-summarized_data$p_2_start_d
 
 
-results%&gt;%
+results_best%&gt;%
   ungroup()%&gt;%
   dplyr::select(!c(&quot;period&quot;,&quot;train_test&quot;))%&gt;%
   kbl(caption = paste0(&quot;Table 1. Forecasts of &quot;,dam,&quot; dam counts of &quot;,species, &quot; from &quot;,forecast_period_start_m,&quot;/&quot;,forecast_period_start_d,&quot;-&quot;,month(date_end_analysis),&quot;/&quot;,mday(date_end_analysis),&quot; using only past years&#39; data for the forecast period and in-season counts from &quot;, month(date_start_analysis),&quot;/&quot;,mday(date_start_analysis),&quot; through &quot;, month(max(dat$date)),&quot;/&quot;,mday(max(dat$date)), &quot; in each year. Additional covariates are included in the table below.&quot;),digits =3)%&gt;%
@@ -643,6 +652,9 @@ pct_error
 <th style="text-align:left;">
 model
 </th>
+<th style="text-align:right;">
+Stacking_weight
+</th>
 </tr>
 </thead>
 <tbody>
@@ -713,6 +725,9 @@ Sockeye
 <td style="text-align:left;">
 ensemble
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:right;">
@@ -780,6 +795,9 @@ Sockeye
 </td>
 <td style="text-align:left;">
 ensemble
+</td>
+<td style="text-align:right;">
+NA
 </td>
 </tr>
 <tr>
@@ -849,6 +867,9 @@ Sockeye
 <td style="text-align:left;">
 ensemble
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:right;">
@@ -916,6 +937,9 @@ Sockeye
 </td>
 <td style="text-align:left;">
 ensemble
+</td>
+<td style="text-align:right;">
+NA
 </td>
 </tr>
 <tr>
@@ -985,6 +1009,9 @@ Sockeye
 <td style="text-align:left;">
 ensemble
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:right;">
@@ -1052,6 +1079,9 @@ Sockeye
 </td>
 <td style="text-align:left;">
 ensemble
+</td>
+<td style="text-align:right;">
+NA
 </td>
 </tr>
 <tr>
@@ -1121,6 +1151,9 @@ Sockeye
 <td style="text-align:left;">
 ensemble
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:right;">
@@ -1188,6 +1221,9 @@ Sockeye
 </td>
 <td style="text-align:left;">
 ensemble
+</td>
+<td style="text-align:right;">
+NA
 </td>
 </tr>
 <tr>
@@ -1257,6 +1293,9 @@ Sockeye
 <td style="text-align:left;">
 ensemble
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:right;">
@@ -1325,11 +1364,14 @@ NA
 <td style="text-align:left;">
 ensemble
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>ISU_pct_error &lt;- mean(abs((results$error/results$abundance)*100),na.rm = T) 
-ISU_msa &lt;- 100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)
+<pre class="r"><code>ISU_pct_error &lt;- mean(abs((results_best$error/results$abundance)*100),na.rm = T) 
+ISU_msa &lt;- 100*(exp(median(abs(log(results_best$predicted_abundance/results$abundance)),na.rm = T))-1)
 
 
 ##load pre-season forecast performance table
@@ -1376,10 +1418,10 @@ MSA
 PSF
 </td>
 <td style="text-align:right;">
-19.173
+41.351
 </td>
 <td style="text-align:right;">
-13.710
+43.877
 </td>
 </tr>
 <tr>
@@ -1395,10 +1437,10 @@ ISU
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>results&lt;-results%&gt;%
+<pre class="r"><code>results_best&lt;-results_best%&gt;%
   mutate(type=&quot;ISU&quot;)%&gt;%
   bind_rows(psf_performance)</code></pre>
-<pre class="r"><code>p&lt;-ggplot(results,aes(x=year,y=predicted_abundance,group=type))+ 
+<pre class="r"><code>p&lt;-ggplot(results_best,aes(x=year,y=predicted_abundance,group=type))+ 
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`,fill=type),color=NA,alpha=0.5)+
   geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`,fill=type),color=NA,alpha=0.5)+
   geom_line()+

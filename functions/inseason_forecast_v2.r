@@ -148,8 +148,6 @@ inseason_forecast_v2<-function(series,
   }
   forecasts<-tdat2
   
-  print(forecasts)
-  
   modelcnt<-length(unique(forecasts$model))
   
   stackdat<-forecasts%>%
@@ -194,7 +192,8 @@ inseason_forecast_v2<-function(series,
            model = "ensemble"
     )
   
-  forecasts<-bind_rows(forecasts,tdat2)
+  forecasts<-bind_rows(forecasts,tdat2)%>%
+    left_join(stacking_weights)
   
   return(forecasts)
 }

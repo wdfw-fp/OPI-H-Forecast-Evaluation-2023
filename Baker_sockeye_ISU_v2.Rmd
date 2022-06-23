@@ -302,17 +302,33 @@ results<-inseason_forecast_v2(series=summarized_data$series,
                   stack_metric = "MSA"
                   )
 
+model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],function(x) paste(x,collapse = " + "))%>%
+  unlist()%>%
+  as_tibble()%>%
+  add_rownames()%>%
+  dplyr::rename(model=rowname,model_name=value)
+
+results%>%
+  filter(year==max(year))%>%
+  left_join(model_list)%>%
+  dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
+  kbl(caption = "Table: Individual Ensemble Member Predictions and Weights",digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
 if(length(unique(results$model))>1){
-  results<-results%>%
+
+  results_best<-results%>%
+    ungroup()%>%
     filter(model =="ensemble")
 }
+
 
 
 p_2_start_m<-summarized_data$p_2_start_m
 p_2_start_d<-summarized_data$p_2_start_d
 
 
-results%>%
+results_best%>%
   ungroup()%>%
   dplyr::select(!c("period","train_test"))%>%
   kbl(caption = paste0("Table 1. Forecasts of ",dam," dam counts of ",species, " from ",forecast_period_start_m,"/",forecast_period_start_d,"-",month(date_end_analysis),"/",mday(date_end_analysis)," using only past years' data for the forecast period and in-season counts from ", month(date_start_analysis),"/",mday(date_start_analysis)," through ", month(max(dat$date)),"/",mday(max(dat$date)), " in each year. Additional covariates are included in the table below."),digits =3)%>%
@@ -320,8 +336,8 @@ results%>%
 
 
 
-ISU_pct_error <- mean(abs((results$error/results$abundance)*100),na.rm = T) 
-ISU_msa <- 100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)
+ISU_pct_error <- mean(abs((results_best$error/results$abundance)*100),na.rm = T) 
+ISU_msa <- 100*(exp(median(abs(log(results_best$predicted_abundance/results$abundance)),na.rm = T))-1)
 
 
 ##load pre-season forecast performance table
@@ -347,14 +363,14 @@ kbl(caption = paste0("Table 2. Comparison of forecast performance of ISU using c
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-results<-results%>%
+results_best<-results_best%>%
   mutate(type="ISU")%>%
   bind_rows(psf_performance)
 ```
 
 ```{r performance_plot, message=FALSE, warning=FALSE, results="show", fig.show = 'asis', fig.cap = "Figure 2. Past performance of pre-season and in-season forecasts. Points are actual final run sizes, lines are 'best forecasts', and shading shows 50% (dark) and 95% (light) prediction intervals."}
 
-p<-ggplot(results,aes(x=year,y=predicted_abundance,group=type))+ 
+p<-ggplot(results_best,aes(x=year,y=predicted_abundance,group=type))+ 
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`,fill=type),color=NA,alpha=0.5)+
   geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`,fill=type),color=NA,alpha=0.5)+
   geom_line()+
