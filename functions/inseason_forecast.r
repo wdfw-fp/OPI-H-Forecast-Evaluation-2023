@@ -140,13 +140,16 @@ inseason_forecast<-function(series,
     results<-results%>%
       left_join(obs_period_2)%>%
       mutate(
-        abundance = abundance + + obs_abundance,
+        abundance = abundance + obs_abundance,
         predicted_abundance = predicted_abundance + obs_abundance,
         `Lo 50` = `Lo 50` + obs_abundance,
         `Lo 95` = `Lo 95` + obs_abundance,
         `Hi 50` = `Hi 50` + obs_abundance,
         `Hi 95` = `Hi 95` + obs_abundance,
         )
+  }else{
+    results<-results%>%
+      mutate(obs_abundance = 0)
   }
   results<-results%>%
     mutate(error = predicted_abundance-abundance,

@@ -60,6 +60,10 @@ packages_list<-c("tidyverse"
                  ,"clock"
                  ,"smooth"
                  ,"scales"
+                 ,"gtools"
+                 ,"CombMSC"
+                 ,"here"
+                 ,"MuMIn"
                  )
 install_or_load_pack(pack = packages_list)
 ```
@@ -88,9 +92,11 @@ covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
 #==================
 leave_yrs<- 15
 covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO")
+p1_covariates_only =c("zl_flow")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
+find_best=T
 ```
 
 ## Get Raw Data
@@ -142,14 +148,15 @@ print(head(dat))
 
 <!-- ## Summarize Data for Analysis -->
 ```{r summarize_data, message=FALSE, warning=FALSE, results="show"}
-series<-prepare_data(series = dat,
+summarized_data<-prepare_data(series = dat,
                   date_start_analysis = date_start_analysis,
                   date_end_analysis = date_end_analysis,
                   forecast_period_start_m = forecast_period_start_m, #inclusive 
                   forecast_period_start_d = forecast_period_start_d, #inclusive
                   use_freshest_data = use_freshest_data,
                   covariates = covariates,
-                  p1_covariates_only =NULL
+                  p1_covariates_only=p1_covariates_only
+                  
                   )
 
 ```
@@ -157,32 +164,79 @@ series<-prepare_data(series = dat,
 ## Results
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
-results<-inseason_forecast(series$series,
-                  leave_yrs,
-                  covariates,
+if(find_best ==T){
+  best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=4)
+  saveRDS(best_covariates,"best_covariates_steelhead_july.rds")
+}
+
+
+# results<-inseason_forecast(series=summarized_data$series,
+#                   leave_yrs=leave_yrs,
+#                   covariates= c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow","zl_flow"), #use to automate variable selection: best_covariates[[1]][[best_covariates[[2]]$model_num[1]]],
+#                   first_forecast_period = first_forecast_period,
+#                   plot_results = plot_results,
+#                   write_model_summaries = write_model_summaries,
+#                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
+#                   forecast_period_start_d =  forecast_period_start_d, #inclusive
+#                   obs_period_2 = summarized_data$obs_period_2,
+#                   p1_covariates_only = p1_covariates_only
+#                   )
+
+best_covariates<-readRDS("best_covariates_steelhead_july.rds")
+
+best_covariates[[2]]%>%
+  slice(1:10)%>%
+  kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+results<-inseason_forecast_v2(series=summarized_data$series,
+                  leave_yrs=leave_yrs,
+                  covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  obs_period_2 = series$obs_period_2,
-                  p1_covariates_only=NULL
+                  obs_period_2 = summarized_data$obs_period_2,
+                  p1_covariates_only = p1_covariates_only,
+                  stack_metric = "MSA"
                   )
 
-p_2_start_m<-series$p_2_start_m
-p_2_start_d<-series$p_2_start_d
-
+model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],function(x) paste(x,collapse = " + "))%>%
+  unlist()%>%
+  as_tibble()%>%
+  add_rownames()%>%
+  dplyr::rename(model=rowname,model_name=value)
 
 results%>%
+  filter(year==max(year))%>%
+  left_join(model_list)%>%
+  dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
+  kbl(caption = "Table: Individual Ensemble Member Predictions and Weights",digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+if(length(unique(results$model))>1){
+
+  results_best<-results%>%
   ungroup()%>%
+  filter(model =="ensemble")
+}
+
+
+p_2_start_m<-summarized_data$p_2_start_m
+p_2_start_d<-summarized_data$p_2_start_d
+
+
+results_best%>%
   dplyr::select(!c("period","train_test"))%>%
   kbl(caption = paste0("Table 2. Forecasts of ",dam," dam counts of ",species, " from ",forecast_period_start_m,"/",forecast_period_start_d,"-",month(date_end_analysis),"/",mday(date_end_analysis)," using only past years' data for the forecast period and in-season counts from ", month(date_start_analysis),"/",mday(date_start_analysis)," through ", month(max(dat$date)),"/",mday(max(dat$date)), " in each year. Additional covariates are included in the table below."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
-print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results$error/results$abundance)*100),na.rm = T)))
-print(paste0("Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results$predicted_abundance/results$abundance)),na.rm = T))-1)))
+print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results_best$error/results$abundance)*100),na.rm = T)))
+print(paste0("Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results_best$predicted_abundance/results$abundance)),na.rm = T))-1)))
 
-p<-ggplot(results,aes(x=year,y=predicted_abundance))+
+p<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_line()+

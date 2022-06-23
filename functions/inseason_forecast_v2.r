@@ -133,6 +133,9 @@ inseason_forecast_v2<-function(series,
           `Hi 50` = `Hi 50` + obs_abundance,
           `Hi 95` = `Hi 95` + obs_abundance,
           )
+    }else{
+      forecasts<-forecasts%>%
+        mutate(obs_abundance = 0)
     }
     forecasts<-forecasts%>%
       mutate(error = predicted_abundance-abundance,
