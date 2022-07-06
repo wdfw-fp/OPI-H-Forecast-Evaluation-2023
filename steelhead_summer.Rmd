@@ -1,5 +1,5 @@
 ---
-title: Columbia Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
+title: Columbia Summer Steelhead Inseason Forecast for Counts 6/1-11/30 @ Bonneville Dam
 author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
 output:
   html_document:
@@ -81,9 +81,9 @@ species="WStlhd"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("2003/3/15") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2022/7/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
-forecast_period_start_m<-7 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+date_start_analysis<-ymd("2003/6/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2022/11/30") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
 covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
@@ -91,7 +91,7 @@ covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
 #forecasting params
 #==================
 leave_yrs<- 15
-covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO")
+covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO","pink_ind")
 p1_covariates_only =c("zl_flow")
 plot_results = F
 first_forecast_period = 2
@@ -141,7 +141,8 @@ PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)
 
 dat<-dat%>%
   left_join(NPGO)%>%
-  left_join(PIT)
+  left_join(PIT)%>%
+  mutate(pink_ind = ifelse(year>1999 & year%%2==0,0,1))
 
 print(head(dat))
 ```
@@ -165,7 +166,7 @@ This section present a a results table showing the performance of the prediction
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
 if(find_best ==T){
   best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=4)
-  saveRDS(best_covariates,"best_covariates_steelhead_july.rds")
+  saveRDS(best_covariates,"best_covariates_steelhead.rds")
 }
 
 
@@ -181,7 +182,7 @@ if(find_best ==T){
 #                   p1_covariates_only = p1_covariates_only
 #                   )
 
-best_covariates<-readRDS("best_covariates_steelhead_july.rds")
+best_covariates<-readRDS("best_covariates_steelhead.rds")
 
 best_covariates[[2]]%>%
   slice(1:10)%>%
