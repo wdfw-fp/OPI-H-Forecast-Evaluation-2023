@@ -107,13 +107,27 @@ write_model_summaries = FALSE
 In this section, data used in the analysis is loaded. Here a snapshot of the data (before aggregation into the two periods described in the overview).
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 
+# From 2013/2014 SRSC study:
+area8TravelTime <- 15
+area78CTravelTime <- 12
+area78D2TravelTime <- 10
+area78D3TravelTime <- 10
+area78D478OTravelTime <- 5
+area78D5TravelTime <- 5
+
+
 dat<-read_csv(here("data","tbl_totalSockeyeCountByArea.csv"))%>%
-  pivot_longer(-c("ID","CountDate","Comment"),names_to = "location",values_to = "count")%>%
+#   mutate(TreatyA8 = lag(TreatyA8,area8TravelTime),TreatyA78C = lag(TreatyA78C,area78CTravelTime),TreatyA78D2 = lag(TreatyA78D2,area78D2TravelTime),TreatyA78D3 = lag(TreatyA78D3,area78D3TravelTime),TreatyA78D478O = 
+# lag(TreatyA78D478O,area78D478OTravelTime),TreatyA78D5 = lag(TreatyA78D5,area78D5TravelTime),SportA78D2 = lag(SportA78D2
+# ,area78D2TravelTime),SportA78D478O = lag(SportA78D478O,area78D478OTravelTime)) %>%
+pivot_longer(-c("ID","CountDate","Comment"),names_to = "location",values_to = "count")%>%
   mutate(date=mdy(CountDate),year=year(date))%>%
+  mutate()%>%
   group_by(date,year)%>%
-  summarise(abundance=sum(count), .groups = "keep")%>%
+  summarise(abundance=sum(count,na.rm = TRUE), .groups = "keep")%>%
   mutate(species=ifelse(abundance >= 0,"Sockeye","Sockeye"))%>%
   filter(!is.na(date))
+
 
 #=========================================================
 #get PDO data
