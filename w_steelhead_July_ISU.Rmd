@@ -1,5 +1,5 @@
 ---
-title: Columbia Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
+title: Columbia Wild Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
 author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
 output:
   html_document:
