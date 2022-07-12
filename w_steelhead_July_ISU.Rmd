@@ -1,5 +1,5 @@
 ---
-title: Columbia Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
+title: Columbia Wild Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
 author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
 output:
   html_document:
@@ -81,7 +81,7 @@ species="WStlhd"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("2003/3/15") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_start_analysis<-ymd("2003/6/01") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
 date_end_analysis<-ymd("2022/7/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-7 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
