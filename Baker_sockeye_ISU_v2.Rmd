@@ -80,22 +80,22 @@ Look at this section to see user inputs regarding the years and dates of data an
 # Raw Data
 #=========
 yr_start<-1992
-yr_end<-year(Sys.Date())-1
+yr_end<-year(Sys.Date())
 dam="Baker"
 species="Sock"
 #===========================
 # Summarization for analysis
 #===========================
 date_start_analysis<-ymd("1992/6/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2021/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+date_end_analysis<-ymd("2022/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
-last_data<-as.Date("2021-07-12")
+last_data<-as.Date("2022-07-11")
 #==================
 #forecasting params
 #==================
-leave_yrs<- 10#11
+leave_yrs<- 11#11
 covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow", "lag1_PDO","lag1_NPGO","lag2_PDO","pink_ind","lag1_log_SAR1","zl_flow")
 p1_covariates_only=c("var_flow","zl_flow")
 plot_results = F
@@ -117,7 +117,7 @@ area78D5TravelTime <- 5
 
 
 dat<-read_csv(here("data","tbl_totalSockeyeCountByArea.csv"))%>%
-#   mutate(TreatyA8 = lag(TreatyA8,area8TravelTime),TreatyA78C = lag(TreatyA78C,area78CTravelTime),TreatyA78D2 = lag(TreatyA78D2,area78D2TravelTime),TreatyA78D3 = lag(TreatyA78D3,area78D3TravelTime),TreatyA78D478O = 
+#   mutate(TreatyA8 = lag(TreatyA8,area8TravelTime),TreatyA78C = lag(TreatyA78C,area78CTravelTime),TreatyA78D2 = lag(TreatyA78D2,area78D2TravelTime),TreatyA78D3 = lag(TreatyA78D3,area78D3TravelTime),TreatyA78D478O =
 # lag(TreatyA78D478O,area78D478OTravelTime),TreatyA78D5 = lag(TreatyA78D5,area78D5TravelTime),SportA78D2 = lag(SportA78D2
 # ,area78D2TravelTime),SportA78D478O = lag(SportA78D478O,area78D478OTravelTime)) %>%
 pivot_longer(-c("ID","CountDate","Comment"),names_to = "location",values_to = "count")%>%
