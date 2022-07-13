@@ -91,7 +91,7 @@ date_end_analysis<-ymd("2022/12/31") #this will be the last date of data used in
 forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
-last_data<-as.Date("2022-07-11")
+last_data<-as.Date("2022-07-12")
 #==================
 #forecasting params
 #==================
@@ -100,7 +100,7 @@ covariates<-c("lag2_NPGO","lag1_log_SAR2","lag2_log_smolts","var_flow", "lag1_PD
 p1_covariates_only=c("var_flow","zl_flow")
 plot_results = F
 first_forecast_period = 2
-write_model_summaries = FALSE
+write_model_summaries = TRUE
 ```
 
 <!-- ## Get Raw Data -->
@@ -242,7 +242,7 @@ timing<-dat%>%
   mutate(yday=yday(date))%>%
   group_by(year)%>%
   mutate(cumpct=cumsum(abundance)/sum(abundance),diff50=abs(0.5-cumpct),date50=ifelse(diff50==min(diff50),1,0))%>%
-  filter(date50==1)%>%
+  filter(date50==1 & year < yr_end)%>%
   summarise(yday=mean(yday))
 
 dat<-dat%>%
@@ -357,11 +357,11 @@ ISU_msa <- 100*(exp(median(abs(log(results_best$predicted_abundance/results_best
 
 ##load pre-season forecast performance table
 psf_performance <- read_csv("https://raw.githubusercontent.com/casruff/Salmon_Forecast_Example/test/sockeye_preseason_fcst_performance.csv")%>%
-  filter(Year %in% 2012:2021)%>%
+  #filter(Year %in% 2012:2021)%>%
   mutate(type="PSF")%>%
   rename(year = Year,predicted_abundance = Estimate,`Lo 95` = L95,`Hi 95` = U95)%>%
   mutate(`Lo 50` = exp(log(predicted_abundance)- 0.675 * sd), `Hi 50` = exp(log(predicted_abundance)+ 0.675 * sd))%>%
-  left_join(results_best%>%dplyr::select(year,abundance))
+  right_join(results_best%>%dplyr::select(year,abundance))
 
 ISU_performance <- results_best %>%
   filter(year %in% 2012:2020)
