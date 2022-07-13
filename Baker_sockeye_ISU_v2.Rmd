@@ -101,6 +101,7 @@ p1_covariates_only=c("var_flow","zl_flow")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
+find_best = F
 ```
 
 <!-- ## Get Raw Data -->
@@ -276,16 +277,10 @@ summarized_data<-prepare_data(series = dat,
 ## Results
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
-# if(find_best ==T){
-#   best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=5)
-#   
-#   best_covariates[[2]]%>%
-#   slice(1:10)%>%
-#   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
-#   kable_classic(full_width = F, html_font = "Cambria")
-#   
-#   saveRDS(best_covariates,"best_covariates_Baker.rds")
-# }
+if(find_best ==T){
+  best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=5)
+  saveRDS(best_covariates,"best_covariates_Baker.rds")
+}
 
 
 best_covariates<-readRDS("best_covariates_Baker.rds")
@@ -364,7 +359,7 @@ psf_performance <- read_csv("https://raw.githubusercontent.com/casruff/Salmon_Fo
   right_join(results_best%>%dplyr::select(year,abundance))
 
 ISU_performance <- results_best %>%
-  filter(year %in% 2012:2020)
+  filter(year %in% min(psf_performance$year):(max(psf_performance$year)-1))
 
 psf_error <- psf_performance$predicted_abundance - ISU_performance$abundance
 psf_pct_error <- mean(abs((psf_error/ISU_performance$abundance)*100))
