@@ -1,5 +1,5 @@
 ---
-title: Columbia Wild Summer Steelhead Inseason Forecast for Counts 7/1-7/31 @ Bonneville Dam
+title: Columbia Summer Chinook Inseason Forecast for Counts 6/7-8/20 @ Priest Rapids Dam
 author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
 output:
   html_document:
@@ -19,7 +19,6 @@ output:
      $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
    });
 </script>
-
 ***
 
 Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
@@ -27,7 +26,7 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 ***
 
 # Overview
-This script fits Seasonal Auto-regressive Integrated Moving Average models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
+This script fits Seasonal Auto-Regressive Integrated Moving Average (SARIMA) models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
 
 <!-- ## Setup -->
 <!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
@@ -74,30 +73,29 @@ Look at this section to see user inputs regarding the years and dates of data an
 #=========
 # Raw Data
 #=========
-yr_start<-2003
+yr_start<-2000
 yr_end<-year(Sys.Date())
-dam="BON"
-species="WStlhd"
+dam="PRD"
+species="Chin"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("2003/6/01") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2022/7/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
-forecast_period_start_m<-7 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
-forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+date_start_analysis<-ymd("2000/6/7") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2022/8/20") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+forecast_period_start_d<-7 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
-covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
+covariates<-c("lag1_NPGO","lag2_NPGO","lag1_PDO","lag2_PDO","log_BON_CK","lag1_log_jCK","lag2_PC1","zl_flow")
 #==================
 #forecasting params
 #==================
-leave_yrs<- 15
-covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO")
+leave_yrs<- 12
+covariates<-c("lag1_NPGO","lag2_NPGO","lag1_PDO","lag2_PDO","lag1_log_jCK","log_BON_CK","lag2_PC1","zl_flow") 
 p1_covariates_only =c("zl_flow")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
 find_best=T
-stack_metric = "MAPE"
 ```
 
 ## Get Raw Data
@@ -109,11 +107,26 @@ dat<-get_dam_data(
   yr_end = yr_end,
   dam = dam,
   species = species
-)
+)%>%filter(date < as.Date("2022-07-11"))
 
 #=========================================================
-#get NPGO data
+#get PDO data
 #=========================================================
+PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=1,col_names=F,comment="#")%>%
+  dplyr::rename(Date=X1,PDO=X2)%>%
+  filter(!PDO < -99)%>%
+  mutate(Date=as.Date(Date),Month=month(Date),Year=year(Date))%>%
+  group_by(Year)%>%
+  add_tally()%>%
+  #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
+  #filter(!n < 12)%>% #use only complete years
+  group_by(Year)%>%
+  dplyr::summarise(PDO=mean(PDO))%>%
+  mutate(lag2_PDO = lag(PDO,2), lag1_PDO = lag(PDO,1))%>%
+  dplyr::select(year=Year,lag2_PDO, lag1_PDO)
+# #=========================================================
+# #get NPGO data
+# #=========================================================
 NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment="#")%>%
   filter(!is.na(X2))%>%
   dplyr::rename(Year=X1,Month=X2,NPGO=X3)%>%
@@ -126,23 +139,78 @@ NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment=
   dplyr::summarise(NPGO=mean(NPGO))%>%
   mutate(Year=Year+1, lag1_NPGO = NPGO,lag2_NPGO = lag(NPGO))%>%
   dplyr::select(year=Year,lag1_NPGO,lag2_NPGO)
+#=========================================================
+#get NOAA indicator data, wrangle into usable format, plot
+#=========================================================
+#indicators<-read_csv("https://media.fisheries.noaa.gov/2021-04/Stoplight%20csv.csv?null",skip=1)%>%
+indicators<-read_csv("https://raw.githubusercontent.com/tbuehrens/Salmon_Forecast_Example/main/data/Stoplight%20csv.csv",skip=1)%>%
+  filter(!is.na(`Ecosystem Indicators`))%>%
+  pivot_longer(names_to = "Year",
+                cols=c(starts_with("1"),starts_with("2")),
+                values_to = "value")%>%
+  pivot_wider(names_from=`Ecosystem Indicators`,values_from=value)%>%
+  mutate(year=as.numeric(Year)+2, lag2_PC1 = scale(`Principal Component scores (PC1)`))%>%
+  dplyr::select(year,lag2_PC1)
 
-# #=========================================================
-# #get PIT tag survival/age data
-# #=========================================================
-PIT<-read_csv("https://raw.githubusercontent.com/tbuehrens/Salmon_Forecast_Example/main/data/Columbia_Steelhead_SAR_DART_11_1_2021.csv")%>%
-  dplyr::rename(OutmigrationYear=year)%>%
-  mutate(Year=OutmigrationYear+2)%>%
-  filter(Pop=="SNA")
+#======
+# Jacks
+#======
+jCK<-read_csv("http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=PRD&startdate=6%2F7&enddate=8%2F20")%>%
+  arrange(Year)%>%
+  dplyr::select(year=Year, `Jack Chinook`)%>%
+  mutate(year = year+1, lag1_log_jCK = log(ifelse(`Jack Chinook`==0,NA,`Jack Chinook`)))%>%
+  filter(!is.na(year) & !is.na(lag1_log_jCK))%>%
+  dplyr::select(year,lag1_log_jCK)
+#======
+# BON_CK
+#======
+BON_CK<-read_csv(paste0("http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=PRD&startdate=6%2F1&enddate=",month(last(dat$date)),"%2F",day(last(dat$date))))%>%
+  arrange(Year)%>%
+  dplyr::select(year=Year, `Chinook`)%>%
+  mutate(year = year, log_BON_CK = log(ifelse(`Chinook`==0,NA,`Chinook` + 1)))%>%
+  filter(!is.na(year) & !is.na(log_BON_CK))%>%
+  dplyr::select(year,log_BON_CK)
+#=========================================================
+#get flow data (might affect timing)
+#=========================================================
+flow_site<-14128870
+flow_url <- paste0("https://waterdata.usgs.gov/nwis/dv?cb_00065=on&format=rdb&site_no=",flow_site,
+                   "&referred_module=sw&period=&begin_date=",yr_start,"-01-01",
+                   "&end_date=",yr_end,"-12-31")
+flow<-readr::read_delim(flow_url,comment = '#')%>%
+  filter(agency_cd=="USGS")%>%
+  dplyr::rename(date=datetime,stage_height=`113489_00065_00003`)%>%
+  dplyr::select(date,stage_height)%>%
+  mutate(stage_height = as.numeric(stage_height))
 
-PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)~s(OutmigrationYear,k=(dim(PIT)[1])),family=binomial,data=PIT)$fitted))%>%
-  bind_cols(data.frame(SAR2=c(gam(cbind(ocean2Count,juvCount-ocean2Count)~s(OutmigrationYear,k=(dim(PIT)[1]-1)),family=binomial,data=PIT)$fitted,NA)))%>%
-  mutate(lag1_log_SAR1 = log(SAR1),lag1_log_SAR2=lag(log(SAR2),1))%>%
-  dplyr::select(year=Year,lag1_log_SAR1,lag1_log_SAR2)
+flow<-flow%>%
+  mutate(year=year(date),month=month(date),yday=yday(date))%>%
+  filter(yday <= yday(max(dat$date)) & yday >= yday(max(dat$date)-6))%>%
+  group_by(year)%>%
+  dplyr::summarise(zl_flow=mean(stage_height,na.rm=T), .groups = "keep")%>%
+  ungroup()%>%
+  mutate(zl_flow=as.vector(scale(zl_flow)))
 
+#=================================================
+#======
+# BONCK
+#======
+# 
+# BON_CK<-read_csv(paste0("http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=BON&startdate=6%2F1&enddate=8%2F20"))%>%
+#   arrange(Year)%>%
+#   dplyr::select(year=Year, `Chinook`)%>%
+#   mutate(year = year+1, lag1_log_BON_CK = log(ifelse(`Chinook`==0,NA,`Chinook`)))%>%
+#   filter(!is.na(year) & !is.na(lag1_log_BON_CK))%>%
+#   dplyr::select(year,lag1_log_BON_CK)
+
+#================================================================
 dat<-dat%>%
+  left_join(PDO)%>%
   left_join(NPGO)%>%
-  left_join(PIT)
+  left_join(BON_CK)%>%
+  left_join(jCK)%>%
+  left_join(flow)%>%
+  left_join(indicators)
 
 print(head(dat))
 ```
@@ -157,6 +225,7 @@ summarized_data<-prepare_data(series = dat,
                   use_freshest_data = use_freshest_data,
                   covariates = covariates,
                   p1_covariates_only=p1_covariates_only
+                  
                   )
 
 ```
@@ -166,7 +235,8 @@ This section present a a results table showing the performance of the prediction
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
 if(find_best ==T){
   best_covariates<-all_subsets(series=summarized_data$series,covariates=covariates,min=0,max=4)
-  saveRDS(best_covariates,"best_covariates_steelhead_july.rds")
+
+  saveRDS(best_covariates,"best_covariates_chinook_prd.rds")
 }
 
 
@@ -182,7 +252,7 @@ if(find_best ==T){
 #                   p1_covariates_only = p1_covariates_only
 #                   )
 
-best_covariates<-readRDS("best_covariates_steelhead_july.rds")
+best_covariates<-readRDS("best_covariates_chinook_prd.rds")
 
 best_covariates[[2]]%>%
   slice(1:10)%>%
@@ -199,7 +269,7 @@ results<-inseason_forecast_v2(series=summarized_data$series,
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
                   obs_period_2 = summarized_data$obs_period_2,
                   p1_covariates_only = p1_covariates_only,
-                  stack_metric = stack_metric
+                  stack_metric = "MSA"
                   )
 
 model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],function(x) paste(x,collapse = " + "))%>%
@@ -211,7 +281,6 @@ model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],fu
 results%>%
   filter(year==max(year))%>%
   left_join(model_list)%>%
-  mutate(model_name = ifelse(is.na(Stacking_weight),"ensemble",model_name))%>%
   dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
   kbl(caption = "Table: Individual Ensemble Member Predictions and Weights",digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
