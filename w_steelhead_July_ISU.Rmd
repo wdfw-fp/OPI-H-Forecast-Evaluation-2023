@@ -97,6 +97,7 @@ plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
 find_best=T
+stack_metric = "MAPE"
 ```
 
 ## Get Raw Data
@@ -198,7 +199,7 @@ results<-inseason_forecast_v2(series=summarized_data$series,
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
                   obs_period_2 = summarized_data$obs_period_2,
                   p1_covariates_only = p1_covariates_only,
-                  stack_metric = "MSA"
+                  stack_metric = stack_metric
                   )
 
 model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],function(x) paste(x,collapse = " + "))%>%
