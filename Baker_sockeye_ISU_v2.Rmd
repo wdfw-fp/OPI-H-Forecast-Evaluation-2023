@@ -91,7 +91,7 @@ date_end_analysis<-ymd("2022/12/31") #this will be the last date of data used in
 forecast_period_start_m<-6 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
-last_data<-as.Date("2022-07-13")
+last_data<-as.Date("2022-07-14")
 #==================
 #forecasting params
 #==================
