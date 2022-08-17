@@ -91,8 +91,8 @@ covariates<-c("lag1_log_SAR1","lag2_NPGO", "lag1_log_SAR2","lag1_NPGO")
 #forecasting params
 #==================
 leave_yrs<- 15
-covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO","pink_ind")
-p1_covariates_only =c("zl_flow")
+covariates<-c("lag1_log_SAR1","lag1_log_SAR2","lag1_NPGO","lag2_NPGO","pink_ind","percent_OA1","diff_PIT_POA1","diff_logit_POA1")
+p1_covariates_only =c("percent_OA1","diff_PIT_POA1","diff_logit_POA1")
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE
@@ -139,9 +139,40 @@ PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)
   mutate(lag1_log_SAR1 = log(SAR1),lag1_log_SAR2=lag(log(SAR2),1))%>%
   dplyr::select(year=Year,lag1_log_SAR1,lag1_log_SAR2)
 
+#=========================================
+# PIT Tag Timing data
+#=========================================
+PIT_OA1<-get_BON_PIT_obs(start_month=6,
+                     start_mday=1,
+                     end_month=month(Sys.Date()),
+                     end_mday=mday(Sys.Date()),
+                     years=c(1998:year(Sys.Date())))%>%
+  filter(!is.na(Length) &
+           Length > 125 &
+           Length < 250 &
+           month(`Release Date`) > 2 &
+           month(`Release Date`) < 7 &
+           `Travel Days` > 300 &
+           `Travel Days` < 1000
+           )%>%
+  mutate(year=as.numeric(Year),ocean_age = year(`Obs Time`) - year(`Release Date`))%>%
+  group_by(year,ocean_age)%>%
+  summarise(count=n())%>%
+  mutate(percent_OA1 = count / sum(count))%>%
+  filter(ocean_age == 1)%>%
+  dplyr::select(year,percent_OA1)%>% #ocean_age,count,
+  ungroup()%>%
+  mutate(diff_PIT_POA1=c(NA,diff(percent_OA1)),
+         diff_logit_POA1 = c(NA,diff(logit(percent_OA1)))
+         )
+
+#ggplot(PIT_OA1,aes(x=year,y=diff_logit_POA1))+geom_point()+geom_line()
+
+
 dat<-dat%>%
   left_join(NPGO)%>%
   left_join(PIT)%>%
+  left_join(PIT_OA1)%>%
   mutate(pink_ind = ifelse(year>1999 & year%%2==0,0,1))
 
 print(head(dat))
