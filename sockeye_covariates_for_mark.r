@@ -84,32 +84,10 @@ PIT<-PIT%>%bind_cols(data.frame(SAR1=gam(cbind(ocean1Count,juvCount-ocean1Count)
   bind_cols(data.frame(SAR2=c(gam(cbind(ocean2Count,juvCount-ocean2Count)~s(OutmigrationYear,k=(dim(PIT)[1]-1),m=1,bs="ps"),family=binomial,data=PIT)$fitted,NA)))%>%
   mutate(lag1_log_SAR1 = log(SAR1),lag1_log_SAR2=lag(log(SAR2),1))%>%
   dplyr::select(year=Year,lag1_log_SAR1,lag1_log_SAR2)
-#=========================================================
-#get flow data (might affect timing)
-#=========================================================
-flow_site<-14128870
-flow_url <- paste0("https://waterdata.usgs.gov/nwis/dv?cb_00065=on&format=rdb&site_no=",flow_site,
-                   "&referred_module=sw&period=&begin_date=",yr_start,"-01-01",
-                   "&end_date=",yr_end,"-12-31")
-flow<-readr::read_delim(flow_url,comment = '#')%>%
-  filter(agency_cd=="USGS")%>%
-  dplyr::rename(date=datetime,stage_height=`113489_00065_00003`)%>%
-  dplyr::select(date,stage_height)%>%
-  mutate(stage_height = as.numeric(stage_height))
-
-flow<-flow%>%
-  mutate(year=year(date),month=month(date),yday=yday(date))%>%
-  filter(yday <= yday(max(dat$date)) & yday >= yday(max(dat$date)-6))%>%
-  group_by(year)%>%
-  dplyr::summarise(zl_flow=mean(stage_height,na.rm=T), .groups = "keep")%>%
-  ungroup()%>%
-  mutate(zl_flow=as.vector(scale(zl_flow)))
-
 #================================================================
 dat<-PDO%>%
   left_join(NPGO)%>%
   left_join(PIT)%>%
-  left_join(flow)%>%
   mutate(pink_ind = ifelse(year>1999 & year%%2==0,0,1))%>%
   ungroup()%>%
   filter(
