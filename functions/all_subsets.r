@@ -1,4 +1,6 @@
-all_subsets<-function(series,covariates,min,max){
+all_subsets<-function(series,covariates,min,max,type){
+  freq=ifelse(type=="inseason",2,1)
+  seasonal=ifelse(type=="inseason",T,F)
   series<-series%>%
     ungroup()%>%
     dplyr::select(year,species,period,abundance,all_of(covariates))%>%
@@ -35,8 +37,8 @@ all_subsets<-function(series,covariates,min,max){
       ungroup()%>%
       dplyr::select(abundance)%>%
       unlist()%>%
-      ts(frequency = 2)%>%
-      auto.arima(lambda=0,seasonal = T, xreg = xreg)
+      ts(frequency = freq)%>%
+      auto.arima(lambda=0,seasonal = seasonal, xreg = xreg)
     AICc[i]<-m1$aicc
     #arma[i,]<-arimaorder(m1)
     formula[i]<-paste0("abundance ~ ",paste(all_of(vars[[i]]),collapse = " + "))
@@ -49,8 +51,8 @@ all_subsets<-function(series,covariates,min,max){
       ungroup()%>%
       dplyr::select(abundance)%>%
       unlist()%>%
-      ts(frequency = 2)%>%
-      auto.arima(lambda=0,seasonal = T, xreg = NULL)
+      ts(frequency = freq)%>%
+      auto.arima(lambda=0,seasonal = seasonal, xreg = NULL)
     AICc[i]<-m1$aicc
     #arma[i,]<-arimaorder(m1)
     formula[i]<-"abundance ~ 1"
