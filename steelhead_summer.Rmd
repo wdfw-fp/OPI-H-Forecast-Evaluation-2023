@@ -160,13 +160,13 @@ PIT_OA1<-get_BON_PIT_obs(start_month=6,
   summarise(count=n())%>%
   mutate(percent_OA1 = count / sum(count))%>%
   filter(ocean_age == 1)%>%
-  dplyr::select(year,percent_OA1)%>% #ocean_age,count,
+  dplyr::select(year,percent_OA1, count)%>% #ocean_age,count,
   ungroup()%>%
   mutate(diff_PIT_POA1=c(NA,diff(percent_OA1)),
          diff_logit_POA1 = c(NA,diff(logit(percent_OA1)))
          )
 
-#ggplot(PIT_OA1,aes(x=year,y=diff_logit_POA1))+geom_point()+geom_line()
+ggplot(PIT_OA1,aes(x=year,y=count))+geom_point()+geom_line()
 
 
 dat<-dat%>%
