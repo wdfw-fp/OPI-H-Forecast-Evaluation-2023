@@ -97,6 +97,14 @@ plot_results = F
 first_forecast_period = 1
 write_model_summaries = TRUE
 find_best=T
+#==============
+#Ensemble Params
+#===============
+min_vars<-1
+max_vars<-6
+forecast_type<-"preseason"
+stack_metric<-"MAPE"
+num_models<-20
 ```
 
 ## Get Raw Data
@@ -201,7 +209,7 @@ print(tail(dat))
 This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
 if(find_best ==T){
-  best_covariates<-all_subsets(series=dat,covariates=covariates,min=0,max=4,type="preseason")
+  best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type)
   saveRDS(best_covariates,"best_covariates_sockeye_preseason.rds")
 }
 
@@ -221,22 +229,22 @@ if(find_best ==T){
 best_covariates<-readRDS("best_covariates_sockeye_preseason.rds")
 
 best_covariates[[2]]%>%
-  slice(1:10)%>%
+  slice(1:num_models)%>%
   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 results<-preseason_forecast(series=dat,
                   leave_yrs=leave_yrs,
-                  covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],
+                  covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  stack_metric = "MAPE"
+                  stack_metric = stack_metric
                   )
 
-model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:10]],function(x) paste(x,collapse = " + "))%>%
+model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],function(x) paste(x,collapse = " + "))%>%
   unlist()%>%
   as_tibble()%>%
   add_rownames()%>%
@@ -246,7 +254,7 @@ results%>%
   filter(year==max(year))%>%
   left_join(model_list)%>%
   dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
-  kbl(caption = "Table: Individual Ensemble Member Predictions and Weights",digits =2)%>%
+  kbl(caption = paste0("Table 2.Individual ensemble member predictions from the best ",num_models," models. These models were used to develop an ensemble using stacking weights which were optimized based on one-year-ahead performance over ",leave_yrs-1," years using ",stack_metric,". Optimized stacking weights are shown."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
@@ -262,7 +270,7 @@ if(length(unique(results$model))>1){
 
 results_best%>%
   dplyr::select(!c("train_test"))%>%
-  kbl(caption = paste0("Table 2. One-year-ahead forecasts of ",dam," dam counts of ",species,". Additional covariates are included in the table below."),digits =2)%>%
+  kbl(caption = paste0("Table 3. One-year-ahead forecasts of ",dam," dam counts of ",species,". Additional covariates are included in the table below."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results_best$error/results$abundance)*100),na.rm = T)))
