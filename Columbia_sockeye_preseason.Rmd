@@ -1,6 +1,6 @@
 ---
-title: Columbia Sockeye Inseason Forecast for Counts 5/1-12/31 @ Bonneville Dam
-author: Thomas Buehrens (tbuehrens@dfw.wa.gov) 
+title: "Columbia Sockeye Inseason Forecast for Counts 5/1-12/31 @ Bonneville Dam"
+author: "Thomas Buehrens (tbuehrens@dfw.wa.gov)"
 output:
   html_document:
     code_folding: hide
@@ -12,7 +12,12 @@ output:
   pdf_document:
     toc: yes
     toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
 ---
+
+
 <script>
    $(document).ready(function() {
      $head = $('#header');
