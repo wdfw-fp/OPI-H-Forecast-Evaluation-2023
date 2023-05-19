@@ -69,24 +69,24 @@ Look at this section to see user inputs regarding the years and dates of data an
 #=========
 # Raw Data
 #=========
-yr_start<-2000
+yr_start<-2001
 yr_end<-year(Sys.Date())
 dam="BON"
 species="Chin"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("2002/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2022/6/15") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+date_start_analysis<-ymd("2003/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2023/6/15") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-1 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 use_freshest_data = T #use all data up to "today" or only up to beginning of forecast period
-covariates<-c("lag1_NPGO","lag2_NPGO","lag1_PDO","lag2_PDO","lag1_log_jCK","lag2_PC1")
+covariates<-c("lag1_PDO","lag2_PDO","lag1_log_jCK","lag2_PC1")
 #==================
 #forecasting params
 #==================
 leave_yrs<- 12
-covariates<-c("lag1_NPGO","lag2_NPGO","lag1_PDO","lag2_PDO","lag1_log_jCK","lag2_PC1") 
+covariates<-c("lag1_PDO","lag2_PDO","lag1_log_jCK","lag2_PC1") 
 plot_results = F
 first_forecast_period = 2
 write_model_summaries = TRUE

@@ -105,36 +105,39 @@ dat1<-get_dam_data(
   dam = dam,
   species = species
 )
+
+
+dat1 %>% filter(dat1$date<=as.Date("2023-04-16"))
 last_day<-dat1$date %>% max()
 #=========================================================
 #get PDO data
 #=========================================================
-PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=1,col_names=F,comment="#")%>%
+PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=1,col_names=F,comment="#") %>%
   dplyr::rename(Date=X1,PDO=X2)%>%
-  filter(!PDO < -99)%>%
-  mutate(Date=as.Date(Date),Month=month(Date),Year=year(Date))%>%
-  group_by(Year)%>%
-  add_tally()%>%
+  filter(!PDO < -99) %>%
+  mutate(Date=as.Date(Date),Month=month(Date),Year=year(Date)) %>%
+  group_by(Year) %>%
+  add_tally() %>%
   #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
   #filter(!n < 12)%>% #use only complete years
-  group_by(Year)%>%
-  dplyr::summarise(PDO=mean(PDO))%>%
-  mutate(lag2_PDO = lag(PDO,2), lag1_PDO = lag(PDO,1))%>%
+  group_by(Year) %>%
+  dplyr::summarise(PDO=mean(PDO)) %>%
+  mutate(lag2_PDO = lag(PDO,2), lag1_PDO = lag(PDO,1)) %>%
   dplyr::select(year=Year,lag2_PDO, lag1_PDO)
 # #=========================================================
 # #get NPGO data
 # #=========================================================
-NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment="#")%>%
-  filter(!is.na(X2))%>%
-  dplyr::rename(Year=X1,Month=X2,NPGO=X3)%>%
-  mutate(Year=as.numeric(Year))%>%
-  group_by(Year)%>%
-  add_tally()%>%
+NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment="#") %>%
+  filter(!is.na(X2)) %>%
+  dplyr::rename(Year=X1,Month=X2,NPGO=X3) %>%
+  mutate(Year=as.numeric(Year)) %>%
+  group_by(Year) %>%
+  add_tally() %>%
   #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
-  filter(!n < 12)%>% #use only complete years
-  group_by(Year)%>%
-  dplyr::summarise(NPGO=mean(NPGO))%>%
-  mutate(Year=Year+2, lag2_NPGO = NPGO)%>%#,lag2_NPGO = lag(NPGO)
+  filter(!n < 12) %>% #use only complete years
+  group_by(Year) %>%
+  dplyr::summarise(NPGO=mean(NPGO)) %>%
+  mutate(Year=Year+2, lag2_NPGO = NPGO) %>%#,lag2_NPGO = lag(NPGO)
   dplyr::select(year=Year,lag2_NPGO)#lag1_NPGO,
 #=========================================================
 #get NOAA indicator data, wrangle into usable format, plot
@@ -164,7 +167,8 @@ jCK<-read_csv("http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc
 # temp and flow
 #======
 days_to_average<-7
-
+temp_flow<-NULL
+try(
 temp_flow<-read_csv(
     file=paste0(
       "https://www.nwd-wc.usace.army.mil/dd/common/web_service/webexec/ecsv?id=",dam,".Flow-Out.Ave.~1Day.1Day.CBT-REV%3Aunits%3Dkcfs%7CBON-ScrollCase.Temp-Water.Inst.~1Day.0.CBT-RAW%3Aunits%3DF&headers=true&filename=&timezone=PST&lookback=6220w2d10h50m&lookforward=-11h50m&startdate=01%2F01%2F1900+07%3A00&enddate=",
@@ -200,8 +204,33 @@ temp_flow<-read_csv(
             flow=log(mean(kcfs,na.rm=T)),
             temp_by_flow=temp*flow) %>% 
   mutate(across(c(temp,flow,temp_by_flow),function(x)c(scale(x))))
-  
+)
 
+if(is.null(temp_flow)){
+  
+ temp_flow<- read_csv(paste0("https://www.cbr.washington.edu/dart/cs/php/rpt/mg.php?sc=1&mgconfig=river&outputFormat=csvSingle",paste0(paste0("&year%5B%5D=",lubridate::year(last_day):1990),collapse = ""),"&loc%5B%5D=BON&data%5B%5D=Outflow&data%5B%5D=Temp+%28Scroll+Case%29&startdate=1%2F1&enddate=12%2F1&avgyear=0&consolidate=1&grid=1&y1min=0&y1max=&y2min=&y2max=&size=medium")) %>% 
+      mutate(date=lubridate::ymd(paste0( year,`mm-dd`,sep="-"))) %>% #make date column names match
+   dplyr::select(year,date,parameter,value) %>% 
+   pivot_wider(names_from = parameter,values_from = value) %>% 
+    mutate(Year = year(date),
+            Month = month(date),
+            Mday = mday(date)
+               
+            # day_nu = yday(date),
+            # `Flow (kcfs)`=kcfs,
+            # `River temp. (F)`=temp
+            )  %>% 
+   rename(temp=tempscr,kcfs=outflow ) %>% 
+     filter(between(Month,month(last_day-days_to_average),month(last_day))&
+              between(Mday,mday(last_day-days_to_average),mday(last_day))) %>% 
+  group_by(Year) %>% 
+  summarise(temp=log(mean(temp,na.rm=T)),
+            flow=log(mean(kcfs,na.rm=T)),
+            temp_by_flow=temp*flow) %>% 
+  mutate(across(c(temp,flow,temp_by_flow),function(x)c(scale(x))))
+   
+  
+}
 
 #================================================================
 dat<-dat1%>%
