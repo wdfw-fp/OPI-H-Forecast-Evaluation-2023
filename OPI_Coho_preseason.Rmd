@@ -366,7 +366,7 @@ if(length(unique(results$model))>1){
 
 results_best%>%
   dplyr::select(!c("train_test"))%>%
-  kbl(caption = paste0("Table 3. One-year-ahead forecasts of ",dam," dam counts of ",species,". Additional covariates are included in the table below."),digits =2)%>%
+  kbl(caption = paste0("Table 3. One-year-ahead forecasts of OPI", species,". Additional covariates are included in the table below."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results_best$error/results$abundance)*100),na.rm = T)))
