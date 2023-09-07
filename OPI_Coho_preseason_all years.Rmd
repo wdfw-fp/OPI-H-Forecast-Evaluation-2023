@@ -1,6 +1,6 @@
 ---
 title: "OPI Forecasts"
-author: Thomas Buehrens (tbuehrens@dfw.wa.gov), Mark Sorel (mark.sorel@dfw.wa.gov), ...
+author: Thomas Buehrens, WDFW (tbuehrens@dfw.wa.gov), Mark Sorel, WDFW (mark.sorel@dfw.wa.gov), Cassandraw Leeman, ODFW (cassandra.r.leeman@odfw.oregon.gov), and Shannon Conley, WDFW (shannon.conley@dfw.wa.gov)
 output:
   html_document:
     code_folding: hide
@@ -24,6 +24,13 @@ output:
      $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
    });
 </script>
+
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"https://raw.githubusercontent.com/tbuehrens/Salmon_Inseason_Forecasts/test/data/ODFW_logo.png"\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
 ***
 
 Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
@@ -31,7 +38,7 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 ***
 
 # Overview
-This script fits Seasonal Auto-Regressive Integrated Moving Average (SARIMA) models to in-season salmon return data to predict total return. It does this by aggregating the run-size into two periods: counts prior to a particular date (often the date of the most recent observation), and counts after that date (i.e., the remainder of the run). It then predicts the remainder of the run using the pattern of abundance before and after that date in previous years, in conjunction with covariates. This software evaluates the model's skill at predicting the remainder of the runsize based on data collected up to a particular date. A forecast for the final year, including confidence intervals, is produced.
+This report details the process of fitting Auto-Regressive Integrated Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The model functions are flexibly configured to allow the user to supply total runsize data and a series of covariates. The 
 
 <!-- ## Setup -->
 <!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
@@ -77,7 +84,7 @@ install_or_load_pack(pack = packages_list)
 ```
 
 ## User Inputs 
-Look at this section to see user inputs regarding the years and dates of data analyzed and covariates used.
+This section contains parameters input to control the forecasting process
 ```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
 #=========
 # Raw Data
@@ -98,8 +105,8 @@ last_data<-Sys.Date()
 #forecasting params
 #==================
 leave_yrs<- 21
-TY_ensemble<-20
-k<-1
+TY_ensemble<-16
+k<-2
 covariates<-c(#oldschool
               "lag1_JackOPI"
               ,"lag1_SmAdj"
@@ -122,21 +129,41 @@ max_vars<-6
 forecast_type<-"preseason"
 stack_metric<-"MAPE"
 num_models<-10
+
+inputs<-list(
+  yr_start = yr_start,
+  yr_end = yr_end,
+  species = species,
+  date_start_analysis = date_start_analysis,
+  date_end_analysis = date_end_analysis,
+  forecast_period_start_m = forecast_period_start_m,
+  forecast_period_start_d = forecast_period_start_d,
+  last_data = last_data,
+  leave_yrs = leave_yrs,
+  TY_ensemble = TY_ensemble,
+  k = k,
+  covariates = covariates,
+  plot_results = plot_results, 
+  first_forecast_period = first_forecast_period,
+  write_model_summaries = write_model_summaries, 
+  find_best = find_best,
+  min_vars = min_vars,
+  max_vars = max_vars,
+  forecast_type = forecast_type,
+  stack_metric = stack_metric,
+  num_models = num_models
+)
+
+print(inputs)
 ```
 
 ## Get Raw Data
-Data is loaded here a a snapshot of the data used in the analysis (before aggregation into the two periods described) is provided.
+Here we load the response variable (observed OPI coho abundance) and covariates used in past forecasts from Eric Suring's GitHub repository [**OPIH Evaluation**](https://github.com/ErikSuring/OPIH_Evaluation). We also load some auxillary covariates including:
 
-
-We get this data from Eric Suring's GitHub repo with the existing OPIH forecast. The following definitions for variables were supplied by ODFW: 
-
-Jack OPI = Total Jack CR and Jack OC.
-d/ Jack CR = Columbia River jack returns corrected for small adults. 
-e/ Jack OC = Oregon coastal and California hatchery jack returns corrected for small adults. 
-f/ Total OPI = Columbia River (Sm D + Sm CR), Oregon coastal and Klamath Basin. 
-g/ Sm CR = Columbia River smolt releases from the previous year expected to return as adults in the year listed. 
-h/ Sm D = Columbia River delayed smolt releases from the previous year expected to return as adults in the year listed
-
+1) [Pacific Decadal Oscillation](https://www.ncei.noaa.gov/access/monitoring/pdo/)
+2) [North Pacific Gyre Oscillation](http://www.o3d.org/npgo/)
+2) [NOAA Ocean Indicators](https://www.fisheries.noaa.gov/west-coast/science-data/ocean-ecosystem-indicators-pacific-salmon-marine-survival-northern)
+3) [NOAA NOAA Extended Reconstructed SST version 5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html)
 
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
@@ -173,7 +200,6 @@ OPIHData%<>%
                 )
   
 Yrlist<-data.frame(year=c(min(OPIHData$year):(max(OPIHData$year)+1)))
-
 #=========================================================
 #get PDO data
 #=========================================================
@@ -286,26 +312,12 @@ dat<-OPIHData%>%
       .fns = ~ !is.na(.x)
     )
   )
-
-print(tail(dat))
 ```
 
 
-## GET THIS LIST OF COVARIATES USED FOR OREGON COAST NATURAL FORECAST:
-Multivariate ENSO Index (Oct-Dec; t-1)
-Spring Transition (Julian date; t-1)
-Upwelling (July-Sept; t-1)
-Upwelling (Sep-Nov; t-1)
-Sea Surface Temperature (Jan; t)
-Sea Surface Height (April-June; t-1)
-PDO (mean May-July; averaged over the 4-years prior to the return year)
-
-
-
-
-## Results
-This section present a a results table showing the performance of the prediction model in previous years as well as a forecast in the current year. The results in the table are graphed below.
-```{r Analysis_v2, message=FALSE, warning=FALSE, results="show"}
+## Analysis and summarization
+This section shows the code used to analyze the data and summarize the results
+```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide"}
 if(find_best ==T){
   best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type)
   saveRDS(best_covariates,"best_covariates_OPI_preseason.rds")
@@ -326,7 +338,7 @@ if(find_best ==T){
 
 best_covariates<-readRDS("best_covariates_OPI_preseason.rds")
 
-best_covariates[[2]]%>%
+Table1<-best_covariates[[2]]%>%
   slice(1:num_models)%>%
   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
@@ -351,6 +363,17 @@ model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:num_mod
   dplyr::rename(model=rowname,model_name=value)
 
 
+results$forecast_skill%<>%
+  left_join(model_list)%>%
+  mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
+  dplyr::select(!model)
+
+Table2<-results$forecast_skill%>%
+  kbl(caption = paste0("Table 2. One step ahead individual and ensemble model performance"),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+
 
 results$forecasts%<>%
   left_join(model_list)%>%
@@ -358,21 +381,12 @@ results$forecasts%<>%
   dplyr::select(!model)
 
 
-results$forecasts%>%
+Table3<-results$forecasts%>%
   filter(year==max(year))%>%
   dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
-  kbl(caption = paste0("Table 2.Individual ensemble member predictions from the best ",num_models," models. These models were used to develop an ensemble using stacking weights which were optimized based on one-year-ahead performance over ",leave_yrs-1," years using ",stack_metric,". Optimized stacking weights are shown."),digits =2)%>%
+  kbl(caption = paste0("Table 3.Individual ensemble member predictions from the best ",num_models," models. These models were used to develop an ensemble using stacking weights which were optimized based on one-year-ahead performance over ",leave_yrs-1," years using ",stack_metric,". Optimized stacking weights are shown."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
-
-results$forecast_skill%<>%
-  left_join(model_list)%>%
-  mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
-  dplyr::select(!model)
-
-results$forecast_skill%>%
-  kbl(caption = paste0("Table 3. One step ahead individual and ensemble model performance"),digits =2)%>%
-  kable_classic(full_width = F, html_font = "Cambria")
 
   
 best_model<-results$forecast_skill%>%
@@ -390,13 +404,13 @@ if(length(unique(results$forecasts$model_name))>1){
 }
 
 
-results_best%>%
-  dplyr::select(!c("train_test"))%>%
-  kbl(caption = paste0("Table 3. One-year-ahead forecasts of OPI", species,". Additional covariates are included in the table below."),digits =2)%>%
+Table4<-results_best%>%
+  dplyr::select(!c("train_test","Stacking_weight","model_name") & !c(covariates))%>%
+  kbl(caption = paste0("Table 4. One-year-ahead forecasts of OPI ", species,". Additional covariates are included in the table below."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-p<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
+Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_line()+
@@ -404,5 +418,70 @@ p<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   ylim(0,NA)+
   scale_x_continuous(breaks=unique(results$forecasts$year))
 
-print(p)
+
+Figure2<-ggplot(results$forecasts,aes(x=year,y=predicted_abundance,col=model_name))+
+  geom_line()+
+  geom_point(aes(x=year,y=abundance))+
+  ylim(0,NA)+
+  scale_x_continuous(breaks=unique(results$forecasts$year))
 ```
+
+## Results
+
+Table 1 shows the model selection results sorted by AIC based on in-sample fits of ARIMA models tested on all subsets of covariates to the full (all years) data set. The ARIMA model structure for each covariate set was selected by the auto.arima function in the forecast package. These model selection results are generated as a first step to identify the top models for further use in evaluating out-of-sample one-step-ahead forecast skill, and constructing ensembles.
+```{r message=FALSE, warning=FALSE, results="show"}
+Table1
+```
+
+
+
+Table 2 shows the model selection results sorted by `r stack_metric` based on `r TY_ensemble` years of out-of-sample one-step-ahead leave-one-out cross validation. Results include both individual ARIMA models as well as weighted ensembles. Ensembles include both a "stacking weight" ensemble where an optimization algorithm is used to identify the weights that maximize out-of-sample one-step-ahead performance using the selected performance metric for the training years, as more traditional ensembles using a harmonic mean where weight $w$ may be calculated for model $i$ from model set $K$ based on it's skill $s$ versus that of other models in the set, where $s$ may be measured by RMSE, MASE, MAPE, MSA, etc:
+$${w}_{i} = \frac {{s}_{i}^{-1}} {\sum_{i=1}^{K} {s}_{i}^{-1}} $$ 
+```{r message=FALSE, warning=FALSE, results="show"}
+Table2
+```
+
+
+
+Table 3 shows predictions of total runsize for the final year in the data set for each individual ARIMA model as well as weighted ensembles, including MLEs, 50% and 95% prediction intervals, and the stacking weights the optimization algorithm identified for each individual model to develop the stacked model ensemble in the final year. Stacking weights are updated annually through iterative optimization, but stacking weights for prior years are not shown.
+```{r message=FALSE, warning=FALSE, results="show"}
+Table3
+```
+
+
+
+Table 4 and Figure 1 show annual one-step-ahead predictions of abundance for the best model, including 50 and 95% prediction intervals relative to the observed abundance (black dots in Figure 1).
+```{r message=FALSE, warning=FALSE, results="show"}
+Table4
+```
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 1. One-step-ahead predictions (black line) of total OPI coho abundance for the best model relative to observed abundance (black dots). Prediction intervals are shown as blue shading including 50% (dark), 95% (light)"}
+Figure1
+```
+
+## Appendix
+Appendix 1 shows the raw data and covariates used in modeling.
+
+Jack OPI = Total Jack CR and Jack OC.
+d/ Jack CR = Columbia River jack returns corrected for small adults. 
+e/ Jack OC = Oregon coastal and California hatchery jack returns corrected for small adults. 
+f/ Total OPI = Columbia River (Sm D + Sm CR), Oregon coastal and Klamath Basin. 
+g/ Sm CR = Columbia River smolt releases from the previous year expected to return as adults in the year listed. 
+h/ Sm D = Columbia River delayed smolt releases from the previous year expected to return as adults in the year listed
+
+GET THIS LIST OF COVARIATES USED FOR OREGON COAST NATURAL FORECAST:
+Multivariate ENSO Index (Oct-Dec; t-1)
+Spring Transition (Julian date; t-1)
+Upwelling (July-Sept; t-1)
+Upwelling (Sep-Nov; t-1)
+Sea Surface Temperature (Jan; t)
+Sea Surface Height (April-June; t-1)
+PDO (mean May-July; averaged over the 4-years prior to the return year)
+
+```{r message=FALSE, warning=FALSE, results="show"}
+dat%>%
+  dplyr::select(-period)%>%
+  kbl(caption ="Appendix 1. data used for forecasting OPI Coho",digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
