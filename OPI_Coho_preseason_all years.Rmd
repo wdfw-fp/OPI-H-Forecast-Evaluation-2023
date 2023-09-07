@@ -97,7 +97,9 @@ last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
-leave_yrs<- 20
+leave_yrs<- 21
+TY_ensemble<-20
+k<-1
 covariates<-c(#oldschool
               "lag1_JackOPI"
               ,"lag1_SmAdj"
@@ -106,7 +108,7 @@ covariates<-c(#oldschool
               ,"lag1_NPGO"
               ,"lag1_PDO"
               ,"WSST_A"
-             # ,"lag1_PC1",
+              #,"lag1_PC1"
               ) 
 plot_results = F
 first_forecast_period = 1
@@ -119,7 +121,7 @@ min_vars<-1
 max_vars<-6
 forecast_type<-"preseason"
 stack_metric<-"MAPE"
-num_models<-20
+num_models<-10
 ```
 
 ## Get Raw Data
@@ -329,15 +331,17 @@ best_covariates[[2]]%>%
   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
-results<-preseason_forecast(series=dat,
+results<-preseason_forecast_v2(series=dat,
                   leave_yrs=leave_yrs,
+                  TY_ensemble=TY_ensemble,
                   covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  stack_metric = stack_metric
+                  stack_metric = stack_metric,
+                  k=k
                   )
 
 model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],function(x) paste(x,collapse = " + "))%>%
@@ -346,22 +350,44 @@ model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:num_mod
   add_rownames()%>%
   dplyr::rename(model=rowname,model_name=value)
 
-results%>%
-  filter(year==max(year))%>%
+
+
+results$forecasts%<>%
   left_join(model_list)%>%
+  mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
+  dplyr::select(!model)
+
+
+results$forecasts%>%
+  filter(year==max(year))%>%
   dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
   kbl(caption = paste0("Table 2.Individual ensemble member predictions from the best ",num_models," models. These models were used to develop an ensemble using stacking weights which were optimized based on one-year-ahead performance over ",leave_yrs-1," years using ",stack_metric,". Optimized stacking weights are shown."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-if(length(unique(results$model))>1){
+results$forecast_skill%<>%
+  left_join(model_list)%>%
+  mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
+  dplyr::select(!model)
 
-  results_best<-results%>%
+results$forecast_skill%>%
+  kbl(caption = paste0("Table 3. One step ahead individual and ensemble model performance"),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+  
+best_model<-results$forecast_skill%>%
+           filter(get(stack_metric) ==min(get(stack_metric)))%>%
+           dplyr::select(model_name)%>%
+           slice(1)%>%
+           unlist()%>%pluck()
+
+if(length(unique(results$forecasts$model_name))>1){
+  results_best<-results$forecasts%>%
   ungroup()%>%
-  filter(model =="ensemble")%>%
+  filter(model_name == best_model
+         )%>%
   dplyr::select(-period)
 }
-
 
 
 results_best%>%
@@ -369,8 +395,6 @@ results_best%>%
   kbl(caption = paste0("Table 3. One-year-ahead forecasts of OPI", species,". Additional covariates are included in the table below."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
-print(paste0("Mean Absolute Percent Error (MAPE) = ",mean(abs((results_best$error/results$abundance)*100),na.rm = T)))
-print(paste0("Median Symmetric Accuracy; MSA) = ",100*(exp(median(abs(log(results_best$predicted_abundance/results$abundance)),na.rm = T))-1)))
 
 p<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
@@ -378,7 +402,7 @@ p<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   geom_line()+
   geom_point(aes(x=year,y=abundance))+
   ylim(0,NA)+
-  scale_x_continuous(breaks=unique(results$year))
+  scale_x_continuous(breaks=unique(results$forecasts$year))
 
 print(p)
 ```
