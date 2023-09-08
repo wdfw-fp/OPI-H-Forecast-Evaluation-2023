@@ -32,7 +32,6 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k,leav
       )
     
     modelcnt<-length(unique(forecasts$model))
-    stackyears<-years[years!=max(years)]
     stackdat<-forecasts%>%
       filter(year %in% years)%>%
       pivot_wider(names_from = model, values_from = predicted_abundance,id_cols = year)%>%
