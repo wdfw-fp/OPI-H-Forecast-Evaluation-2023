@@ -91,14 +91,14 @@ This section contains parameters input to control the forecasting process
 #=========
 # Raw Data
 #=========
-yr_start<-1967
+yr_start<-2000
 yr_end<-year(Sys.Date())
 #dam="BON"
 species="Coho"
 #===========================
 # Summarization for analysis
 #===========================
-date_start_analysis<-ymd("1967/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_start_analysis<-ymd("2000/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
 date_end_analysis<-ymd("2023/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-1 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
@@ -106,7 +106,7 @@ last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
-leave_yrs<- 21
+leave_yrs<- 16
 TY_ensemble<-11
 k<-1
 covariates<-c(#new
@@ -144,7 +144,7 @@ find_best=T
 #Ensemble Params
 #===============
 min_vars<-0
-max_vars<-8
+max_vars<-5
 forecast_type<-"preseason"
 stack_metric<-"MAPE"
 num_models<-40
@@ -362,7 +362,8 @@ dat<-OPIHData%>%
       .cols = all_of(unique(unlist(covariates))),
       .fns = ~ !is.na(.x)
     )
-  )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
+  )%>%
+  filter(year>=yr_start)#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
 
 dat%>%
   dplyr::select(-c(year,species,period,abundance))%>%
