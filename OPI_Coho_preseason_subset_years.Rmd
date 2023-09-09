@@ -1,6 +1,6 @@
 ---
 title: "OPI Forecasts"
-author: Thomas Buehrens, WDFW (tbuehrens@dfw.wa.gov), Mark Sorel, WDFW (mark.sorel@dfw.wa.gov), Cassandraw Leeman, ODFW (cassandra.r.leeman@odfw.oregon.gov), and Shannon Conley, WDFW (shannon.conley@dfw.wa.gov)
+author: Thomas Buehrens, WDFW (tbuehrens@dfw.wa.gov), Mark Sorel, WDFW (mark.sorel@dfw.wa.gov), Cassandra Leeman, ODFW (cassandra.r.leeman@odfw.oregon.gov), and Shannon Conley, WDFW (shannon.conley@dfw.wa.gov)
 output:
   html_document:
     code_folding: hide
