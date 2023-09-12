@@ -106,8 +106,8 @@ last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
-leave_yrs<- 21
-TY_ensemble<-11
+leave_yrs<- 26
+TY_ensemble<-16
 k<-1
 covariates<-c(#new
               "lag1_log_JackOPI"

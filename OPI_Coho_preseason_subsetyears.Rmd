@@ -106,8 +106,8 @@ last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
-leave_yrs<- 16
-TY_ensemble<-11
+leave_yrs<- 17
+TY_ensemble<-16
 k<-1
 covariates<-c(#new
               "lag1_log_JackOPI"
@@ -357,7 +357,7 @@ dat<-OPIHData%>%
       .fns = ~ !is.na(.x)
     )
   )%>%
-  filter(year>=2000)#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
+  filter(year>=1999)#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
 
 dat%>%
   dplyr::select(-c(year,species,period,abundance))%>%

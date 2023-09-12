@@ -1,6 +1,6 @@
 evaluate_old_model<-function(data,TY_ensemble,yr_end){
   results_old<-NULL
-  for(i in (yr_end-TY_ensemble-1):c(OPIHData%>%filter(!is.na(abundance))%>%summarise(max(year))%>%unlist()%>%pluck())){
+  for(i in (yr_end-TY_ensemble):c(OPIHData%>%filter(!is.na(abundance))%>%summarise(max(year))%>%unlist()%>%pluck())){
     if(is.null(results_old)){
       results_old<- as_tibble(predict(lm(abundance ~ lagJackOPI + lagSmAdj,data=OPIHData%>%filter(year %in% c(min(year):i))),
                                       newdata=OPIHData%>%filter(year == i+1),
