@@ -106,7 +106,7 @@ last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
-leave_yrs<- 26
+leave_yrs<- 17
 TY_ensemble<-16
 k<-1
 covariates<-c(#new
@@ -144,7 +144,7 @@ find_best=T
 #Ensemble Params
 #===============
 min_vars<-0
-max_vars<-8
+max_vars<-5
 forecast_type<-"preseason"
 stack_metric<-"MAPE"
 num_models<-40
@@ -178,6 +178,7 @@ print(inputs)
 
 ## Get Raw Data
 Here we load the response variable (observed OPI coho abundance) and covariates used in past forecasts from Erik Suring's GitHub repository [**OPIH Evaluation**](https://github.com/ErikSuring/OPIH_Evaluation). We also load covariates used in the Oregon Coast Natural (OCN) coho forecast, as well as ancillary additional covariates. More details are available in the appendix.
+
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
 
@@ -355,7 +356,8 @@ dat<-OPIHData%>%
       .cols = all_of(unique(unlist(covariates))),
       .fns = ~ !is.na(.x)
     )
-  )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
+  )%>%
+  filter(year>=1999)#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
 
 dat%>%
   dplyr::select(-c(year,species,period,abundance))%>%
@@ -523,7 +525,6 @@ dat%>%
   kbl(caption ="Appendix 1. data used for forecasting OPI Coho",digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
-
 
 OPI data and covariate notes:
 1) Jack OPI = Total Jack CR and Jack OC. 
