@@ -81,7 +81,7 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k,leav
     
     ensembles<-ensembles%>%
       bind_rows(tdat2)%>%
-      bind_rows(fit_xgboost(forecasts=forecasts,years=years))
+      bind_rows(fit_xgboost(forecasts=forecasts,years=years,series=series))
   }
   forecast_skill<-evaluate_forecasts2(forecasts = bind_rows(forecasts, ensembles%>%
                                                               left_join(series))%>%
@@ -92,9 +92,9 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k,leav
     filter(year>(yrrange[2]-TY_ensemble))%>%
     mutate(error=predicted_abundance-abundance,
            pct_error=scales::percent(error/abundance)
-           )%>%
+    )%>%
     left_join(tdat%>%dplyr::select(model,Stacking_weight))
-    
+  
   
   results<-list(
     final_model_weights = tdat,

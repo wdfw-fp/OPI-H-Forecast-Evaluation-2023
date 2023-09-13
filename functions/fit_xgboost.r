@@ -1,4 +1,4 @@
-fit_xgboost<-function(forecasts,years){
+fit_xgboost<-function(forecasts,years,series){
   stackdat<-forecasts%>%
     filter(year %in% years)%>%
     pivot_wider(names_from = model, values_from = predicted_abundance,id_cols = year)%>%
