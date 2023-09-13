@@ -1,4 +1,4 @@
-fit_xgboost<-function(forecasts,years,series){
+fit_quantregForest<-function(forecasts,years,series){
   stackdat<-forecasts%>%
     filter(year %in% years)%>%
     pivot_wider(names_from = model, values_from = predicted_abundance,id_cols = year)%>%
@@ -12,15 +12,12 @@ fit_xgboost<-function(forecasts,years,series){
     left_join(series%>%dplyr::select(year,abundance))%>%
     dplyr::select(!year & !abundance)%>%
     as.matrix()
-  
-  fit<-xgboost(data = x, label = y,booster = "gblinear", 
-               eta = 0.1, lambda = 0.01, alpha = 0.01,
-               nrounds = 200, objective = "reg:squarederror", verbose =  0
-  )
-  
-  results<-tibble(predicted_abundance=predict(fit, x_pred))%>%
+  fit<-quantregForest(x = x, y = y)
+  results<-predict(fit, newdata=x_pred,what=c(0.025,0.25,0.5,0.75,0.975))%>%
+    as.data.frame()%>%
+    setNames(c("Lo 95","Lo 50","predicted_abundance","Hi 50","Hi 95"))%>%
     mutate(year=max(years)+1,
-           model="xgboost_rf"
+           model="quantregForest"
     )
   return(results)
 }

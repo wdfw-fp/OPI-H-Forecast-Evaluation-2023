@@ -1,4 +1,4 @@
-evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k,leave_yrs){
+evaluate_forecasts_with_ensembles3<-function(forecasts,series,TY_ensemble,k,leave_yrs){
   
   yrrange<-forecasts%>%
     summarise(minyr=min(year),maxyr=max(year))%>%
@@ -81,6 +81,7 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k,leav
     
     ensembles<-ensembles%>%
       bind_rows(tdat2)%>%
+      bind_rows(fit_quantregForest(forecasts=forecasts,years=years,series=series))%>%
       bind_rows(fit_xgboost(forecasts=forecasts,years=years,series=series))
   }
   forecast_skill<-evaluate_forecasts2(forecasts = bind_rows(forecasts, ensembles%>%
