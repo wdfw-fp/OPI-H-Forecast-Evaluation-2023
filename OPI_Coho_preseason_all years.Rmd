@@ -381,7 +381,7 @@ if(find_best ==T){
 best_covariates<-readRDS("best_covariates_OPI_preseason.rds")
 
 Table1<-best_covariates[[2]]%>%
-  slice(1:num_models)%>%
+  dplyr::slice(1:num_models)%>%
   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
@@ -438,7 +438,7 @@ Table3<-results$forecasts%>%
 best_model<-results$forecast_skill%>%
            filter(get(stack_metric) ==min(get(stack_metric)))%>%
            dplyr::select(model_name)%>%
-           slice(1)%>%
+           dplyr::slice(1)%>%
            unlist()%>%pluck()
 
 if(length(unique(results$forecasts$model_name))>1){
@@ -474,6 +474,9 @@ Figure2<-ggplot(results$forecasts,aes(x=year,y=predicted_abundance,col=model_nam
   scale_x_continuous(breaks=unique(results$forecasts$year))+
   theme(legend.position = "none")
   #theme(legend.key.size=unit(.15,'cm'),legend.position = "top")
+
+
+Figure3<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100)),aes(x=year,y=pct_error))+geom_line()
 ```
 
 ## Results
@@ -513,6 +516,11 @@ Figure1
 Figure 2 shows the annual one-step-ahead predictions of abundance (lines) for the entire top model set based on in-sample AIC (colored lines) that was used in one step ahead evaluation and ensemble development relative to the observed abundance (black dots), the best model forecast (thick black line), and the existing OPI forecast (thick grey line).
 ```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 2. One-step-ahead predictions (lines) of total OPI coho abundance for the top model set relative to observed abundance (black dots)."}
 Figure2
+```
+
+Figure 3 shows the absolute percent forecast error of the current model over time, which is a generally increasing pattern.
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. the absolute percent forecast error of the current model over time."}
+Figure3
 ```
 
 ## Appendix
