@@ -381,7 +381,7 @@ if(find_best ==T){
 best_covariates<-readRDS("best_covariates_OPI_preseason.rds")
 
 Table1<-best_covariates[[2]]%>%
-  slice(1:num_models)%>%
+  dplyr::slice(1:num_models)%>%
   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
@@ -438,7 +438,7 @@ Table3<-results$forecasts%>%
 best_model<-results$forecast_skill%>%
            filter(get(stack_metric) ==min(get(stack_metric)))%>%
            dplyr::select(model_name)%>%
-           slice(1)%>%
+           dplyr::slice(1)%>%
            unlist()%>%pluck()
 
 if(length(unique(results$forecasts$model_name))>1){
