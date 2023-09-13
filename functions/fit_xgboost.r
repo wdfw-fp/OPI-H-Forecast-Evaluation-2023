@@ -6,7 +6,7 @@ fit_xgboost<-function(forecasts,years,series){
   
   x<-stackdat%>%dplyr::select(!year & !abundance)%>%as.matrix()
   y<-stackdat%>%dplyr::select(abundance)%>%unlist()%>%as.vector()
-  x_pred<-stackdat<-forecasts%>%
+  x_pred<-forecasts%>%
     filter(year == max(years)+1)%>%
     pivot_wider(names_from = model, values_from = predicted_abundance,id_cols = year)%>%
     left_join(series%>%dplyr::select(year,abundance))%>%
