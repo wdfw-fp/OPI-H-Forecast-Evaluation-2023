@@ -1,4 +1,4 @@
-all_subsets<-function(series,covariates,min,max,type){
+all_subsets<-function(series,covariates,min,max,type,fit=TRUE){
   freq=ifelse(type=="inseason",2,1)
   seasonal=ifelse(type=="inseason",T,F)
   series<-series%>%
@@ -22,8 +22,12 @@ all_subsets<-function(series,covariates,min,max,type){
       vars[[length(vars) + 1]]<-temp[[j]]
     }
   }
+  
+  
   total = ifelse(min==0,length(vars)+1,length(vars))
   print(paste0("There are ",total," models to fit! Fitting model number:"))
+  
+  if(fit){
   for(i in 1:length(vars)){
     print(paste0(i," out of ",total))
     #arma<-data.frame(NA,nrow=length(vars),ncol=7)
@@ -59,7 +63,9 @@ all_subsets<-function(series,covariates,min,max,type){
     model_num[i]<-i
   }
   table<-as_tibble(data.frame(model_num,AICc,formula))%>%
-    arrange(AICc)
+    arrange(AICc)}else{
+      table<-NULL
+    }
   results<-list(vars,table)
   return(results)
 }

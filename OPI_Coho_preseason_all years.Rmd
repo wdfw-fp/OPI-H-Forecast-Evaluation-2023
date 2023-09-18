@@ -81,6 +81,9 @@ packages_list<-c("tidyverse"
                  ,"ncdf4"
                  ,"magrittr"
                  ,"ggcorrplot"
+                 ,"parallel"
+                 ,"foreach"
+                 ,"doParallel"
                  )
 install_or_load_pack(pack = packages_list)
 ```
@@ -179,6 +182,14 @@ print(inputs)
 ## Get Raw Data
 Here we load the response variable (observed OPI coho abundance) and covariates used in past forecasts from Erik Suring's GitHub repository [**OPIH Evaluation**](https://github.com/ErikSuring/OPIH_Evaluation). We also load covariates used in the Oregon Coast Natural (OCN) coho forecast, as well as ancillary additional covariates. More details are available in the appendix.
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
+
+make_dat<-function(file_path=NULL){
+
+  
+if(!is.null(file_path)){
+  return(read_csv(file_path))
+  
+}else{
 OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
 
 nYears <- length(OPIHData[,1])
@@ -288,7 +299,7 @@ enso<-read_table("https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.ano
 #Get ERSST data: get_ersst_v5_data takes A LONG TIME (1 hr) vs. get_ersst_v5_data_V2 which is much quicker!
 #==========================================================================================================
 sstdat<-get_ersst_v5_data_V2(years=c(min(Yrlist$year):max(Yrlist$year)),
-                             data.dir="C:\\Users\\buehrtwb\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
+                             data.dir="C:\\Users\\sorelmhs\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
                              ncfilename="sst.mnmean.nc",
                              latrange=c(44,50),
                              lonrange=c(-125,-120)
@@ -356,6 +367,10 @@ dat<-OPIHData%>%
       .fns = ~ !is.na(.x)
     )
   )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
+}
+}
+
+dat<-make_dat("data/dat.csv")
 
 dat%>%
   dplyr::select(-c(year,species,period,abundance))%>%
@@ -374,7 +389,8 @@ dat%>%
 This section shows the code used to analyze the data and summarize the results
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide"}
 if(find_best ==T){
-  best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type)
+  max_vars<-6
+  best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
   saveRDS(best_covariates,"best_covariates_OPI_preseason.rds")
 }
 
@@ -385,10 +401,14 @@ Table1<-best_covariates[[2]]%>%
   kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
+
+num_models<-10
+leave_yrs<-32
 results<-preseason_forecast_v3(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
-                  covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]][1:num_models],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
@@ -399,9 +419,30 @@ results<-preseason_forecast_v3(series=dat,
                   )
 
 
+num_models<-length(best_covariates[[1]])
+leave_yrs<-31
+results<-one_step_ahead(series=dat,
+                  leave_yrs=leave_yrs,
+                  TY_ensemble=TY_ensemble,
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]][1:num_models],
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  stack_metric = stack_metric,
+                  k=k
+                  )
+
+write.csv(results,"forecsts.csv")
+
+save(results,file="forecasts.rds")
+
 results_old<-evaluate_old_model(data=OPIHData,TY_ensemble=TY_ensemble,yr_end = yr_end)  
 
-model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],function(x) paste(x,collapse = " + "))%>%
+model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_models]],
+                   function(x) paste(x,collapse = " + "))%>%
   unlist()%>%
   as_tibble()%>%
   add_rownames()%>%
@@ -409,7 +450,7 @@ model_list<-lapply(best_covariates[[1]][best_covariates[[2]]$model_num[1:num_mod
 
 
 results$forecast_skill%<>%
-  bind_rows(results_old$forecast_skill)%>%
+  # bind_rows(results_old$forecast_skill)%>%
   left_join(model_list)%>%
   mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
   arrange(get(stack_metric))%>%

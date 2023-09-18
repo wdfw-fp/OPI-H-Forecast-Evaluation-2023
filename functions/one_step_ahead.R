@@ -1,5 +1,5 @@
 #function to evaluate performance of ARIMA model (produces season total forecasts only)
-preseason_forecast_v3<-function(series,
+one_step_ahead<-function(series,
                             leave_yrs,
                             TY_ensemble,
                             covariates,
@@ -15,9 +15,15 @@ preseason_forecast_v3<-function(series,
                             ){
   
   start<-Sys.time()
+  
   if(write_model_summaries ==T){
     write.table(NULL,"summary.txt")
   }
+  
+  
+  
+
+ 
   
   series<-series%>%
     ungroup()%>%
@@ -29,8 +35,16 @@ preseason_forecast_v3<-function(series,
       )
     )
   exists1 =ifelse(is.na(series%>%dplyr::select(abundance)%>%tail(n=1)%>%pull()),1,0)
+  
+  library(doParallel)
+  cl <- makeCluster(parallel::detectCores()-3)
+  registerDoParallel(cl)
+  forecasts_out<- foreach::foreach(i=1:leave_yrs,.combine =  'rbind',.packages=c("tidyverse","forecast")) %dopar% {
+  source("functions/arima_forecast.r")
   for(c in 1:length(covariates)){
-    for(i in 1:leave_yrs){
+    
+    
+    # for(i in 1:leave_yrs){
       last_train_yr = max(series$year) - (leave_yrs-i+exists1)
       tdat<-series%>%
         filter(year <= (last_train_yr + 1))%>%
@@ -51,40 +65,50 @@ preseason_forecast_v3<-function(series,
       
       temp<-NULL
       temp<-arima_forecast(tdat,xreg,xreg_pred,last_train_yr,first_forecast_period)
-      pred<-temp$pred
+      pred<-temp$pred %>% tail(1)
       CI<-temp$CI
 
-      tdat<-tdat%>%
-        bind_cols(pred=pred)%>%
-        left_join(CI, by = c("year","period"))%>%
-        dplyr::rename(predicted_abundance = pred)%>%
-        filter(train_test==1)
+
+        
+      tdat<-tdat%>% filter(train_test==1) %>% dplyr::select( c("year","period")) %>% 
+                    bind_cols(data.frame(
+                      predicted_abundance=pred,
+                      arma=temp$arma,
+                      aicc=temp$aicc))%>%
+                    left_join(CI, by = c("year","period"))%>%
+                    # dplyr::rename(predicted_abundance = pred)%>%
+        mutate(model=as.character(c))
       
-      if(i==1){forecasts = tdat
+      if(c==1){forecasts = tdat
       }else{forecasts = forecasts %>% bind_rows(tdat)}
+      
+     
     }
-    forecasts<-forecasts%>%
-      mutate(error = predicted_abundance-abundance,
-             pct_error=scales::percent(error/abundance),
-             model = as.character(c)
-      )
-    if(c==1){
-      tdat2 <- forecasts
-    }else{
-      if(sum(is.na(forecasts$predicted_abundance))==0){
-        tdat2 <- tdat2%>%
-          bind_rows(forecasts)
-      }
-    }
+    # forecasts<-forecasts%>%
+    #   mutate(error = predicted_abundance-abundance,
+    #          pct_error=scales::percent(error/abundance),
+    #          model = as.character(c)
+    #   )
+    # if(c==1){
+    #   tdat2 <- forecasts
+    # }else{
+    #   if(sum(is.na(forecasts$predicted_abundance))==0){
+    #     tdat2 <- tdat2%>%
+    #       bind_rows(forecasts)
+    #   }
+    # }
+    return(forecasts )
   }
-  forecasts<-tdat2
+  # forecasts<-tdat2
   
   #do model averaging and stacking and calculate performance metrics
   # forecast_eval<-evaluate_forecasts_with_ensembles2(forecasts=forecasts,series=series,TY_ensemble=TY_ensemble,k=k,leave_yrs=leave_yrs)
   # 
   # return(forecast_eval)
-
-  print(paste("time for completion was ",(round(Sys.time()-start,1)),"minutes"))
-  return(  forecasts)
+  stopCluster(cl)
+  
+  
+  print((Sys.time()-start))
+  return(  forecasts_out)
 }
 

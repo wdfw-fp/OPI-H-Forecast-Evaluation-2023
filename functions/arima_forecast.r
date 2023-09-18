@@ -1,4 +1,4 @@
-arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr){
+arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr,first_forecast_period){
   result<-tryCatch(
     {
       if(ncol(xreg)>0){
@@ -38,7 +38,8 @@ arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr){
           dplyr::select(!`Point Forecast`)%>%
           mutate(year = last_train_yr+1, period = 1)
       }
-      return(list(pred = pred, CI = CI))
+      return(list(pred = pred, CI = CI, arma=paste(m1$arma,collapse = ""),
+                  aicc=m1$aicc))
       if(write_model_summaries ==T){
         sink("summary.txt",append=T)
         print(summary(m1))
@@ -56,7 +57,9 @@ arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr){
                       mutate(value=as.numeric(value))%>%
                       pivot_wider(names_from = names,values_from = value)%>%
                       mutate(year = last_train_yr+1, period = 1)
-                    )
+                    ,
+                    arma=paste(m1$arma,collapse = ""),
+                    aicc=m1$aicc)
                )
       }
   )
