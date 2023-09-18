@@ -421,7 +421,9 @@ results<-preseason_forecast_v3(series=dat,
 
 num_models<-length(best_covariates[[1]])
 leave_yrs<-31
-results<-one_step_ahead(series=dat,
+# fit_one_step<-FALSE
+if(fit_one_step){
+  results<-one_step_ahead(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
                   # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
@@ -438,6 +440,20 @@ results<-one_step_ahead(series=dat,
 write.csv(results,"forecsts.csv")
 
 save(results,file="forecasts.rds")
+}else{
+  results<-read_csv("forecsts.csv")
+}
+
+
+
+rp<-rolling_perf(results,dat,15,3)
+rp$performance
+
+num_models<-25
+ens<-ensemble(rp$all_mods,dat,TY_ensemble,k)
+
+ens$forecast_skill %>%filter(grepl("weight",model))
+
 
 results_old<-evaluate_old_model(data=OPIHData,TY_ensemble=TY_ensemble,yr_end = yr_end)  
 

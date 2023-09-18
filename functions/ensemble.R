@@ -1,6 +1,6 @@
-evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k){
+ensemble<-function(forecasts,series,TY_ensemble,k){
 
-  forecasts<-forecasts %>% left_join(series %>% dplyr::select(year,abundance))
+  # forecasts<-forecasts %>% left_join(series %>% dplyr::select(year,abundance))
   
   yrrange<-forecasts%>%
     summarise(minyr=min(year),maxyr=max(year))%>%
@@ -16,7 +16,13 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k){
   ensembles<-NULL
   for(i in (yrrange[2]-TY_ensemble):maxdata_year){
     years<-c(yrrange[1]:i)
+    
+
+    
     tdat<-forecasts%>%
+      dplyr::filter(
+        model%in% c(forecasts %>% filter(year==i+1,rank<=num_models) %>% pull(model))
+      ) %>% 
       filter(year %in% years)%>%
       left_join(series,by="year")%>%
       dplyr::select(year,model,predicted_abundance,abundance=abundance.x)%>%
@@ -33,8 +39,12 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k){
              MAPE_weight =(1/MAPE)^k/sum((1/MAPE)^k)
       )
     
-    modelcnt<-length(unique(forecasts$model))
+    modelcnt<-num_models
+    
     stackdat<-forecasts%>%
+      dplyr::filter(
+        model%in% c(forecasts %>% filter(year==i+1,rank<=num_models) %>% pull(model))
+      ) %>% 
       filter(year %in% years)%>%
       pivot_wider(names_from = model, values_from = predicted_abundance,id_cols = year)%>%
       left_join(series%>%dplyr::select(year,abundance))
@@ -58,11 +68,14 @@ evaluate_forecasts_with_ensembles2<-function(forecasts,series,TY_ensemble,k){
       left_join(stacking_weights)
     
     tdat2<-forecasts%>%
+      dplyr::filter(
+        model%in% c(forecasts %>% filter(year==i+1,rank<=num_models) %>% pull(model))
+      ) %>% 
       filter(year == max(years)+1)%>%
       pivot_longer(names_to = "Parameter",
                    cols=c("predicted_abundance","Lo 95","Hi 95", "Lo 50", "Hi 50"),
                    values_to = "value")%>%
-      left_join(tdat)%>%
+      left_join(tdat %>% dplyr::select(model,MSA_weight:Stacking_weight))%>%
       mutate(MSA_weighted = value * MSA_weight,
              RMSE_weighted = value * RMSE_weight,
              MAPE_weighted = value * MAPE_weight,
