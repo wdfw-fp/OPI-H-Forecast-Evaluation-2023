@@ -402,6 +402,15 @@ Table1<-best_covariates[[2]]%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
+model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_models]],
+                   function(x) paste(x,collapse = " + "))%>%
+  unlist()%>%
+  as_tibble()%>%
+  add_rownames()%>%
+  dplyr::rename(model=rowname,model_name=value)
+
+
+
 num_models<-10
 leave_yrs<-32
 results<-preseason_forecast_v3(series=dat,
@@ -445,27 +454,21 @@ save(results,file="forecasts.rds")
 }
 
 
-
+TY_ensemble<-16
 rp<-rolling_perf(results,dat,15,3)
 rp$performance
 
-num_models<-25
-ens<-ensemble(rp$all_mods,dat,TY_ensemble,k)
+num_models<-5
+ens<-ensemble(rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,dat,TY_ensemble,k)
 
 ens$forecast_skill %>%filter(grepl("weight",model))
 
 
 results_old<-evaluate_old_model(data=OPIHData,TY_ensemble=TY_ensemble,yr_end = yr_end)  
 
-model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_models]],
-                   function(x) paste(x,collapse = " + "))%>%
-  unlist()%>%
-  as_tibble()%>%
-  add_rownames()%>%
-  dplyr::rename(model=rowname,model_name=value)
 
 
-results$forecast_skill%<>%
+ens$forecast_skill%<>%
   # bind_rows(results_old$forecast_skill)%>%
   left_join(model_list)%>%
   mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%

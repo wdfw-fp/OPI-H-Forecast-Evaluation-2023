@@ -1,7 +1,7 @@
 ensemble<-function(forecasts,series,TY_ensemble,k){
 
   # forecasts<-forecasts %>% left_join(series %>% dplyr::select(year,abundance))
-  
+
   yrrange<-forecasts%>%
     summarise(minyr=min(year),maxyr=max(year))%>%
     unlist()
