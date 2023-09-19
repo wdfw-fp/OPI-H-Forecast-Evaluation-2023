@@ -38,7 +38,10 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 ***
 
 # Overview
-This report details the process of fitting Auto-Regressive Integrated Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The model functions are flexibly configured to allow the user to supply total runsize data and a series of covariates. The 
+This report details the process of fitting Auto-Regressive Integrated Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The model functions are flexibly configured to allow the user to supply total runsize data and a series of covariates. 
+
+
+<!-- The forecasting process begins with identifying a set of predictors, which may include jack returns and environmental variables. A total of $n$ ARIMA models including all combinations of the predictors up to a maximum number of predictors are then fit to subsets of the data starting with the first year, $t=1$, and running through some subsequent year, $t=i$. The structure of the auto-regressive, difference, and moving average components of each model are selected based on AICc. Each model is then used to generate a forecast of returns in year $i+1$. This process is repeated for $n$ years to create a set of  -->
 
 <!-- ## Setup -->
 <!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
@@ -109,7 +112,7 @@ last_data<-Sys.Date()
 #==================
 #forecasting params
 #==================
-leave_yrs<- 26
+leave_yrs<- 31
 TY_ensemble<-16
 k<-1
 covariates<-c(#new
@@ -147,10 +150,11 @@ find_best=T
 #Ensemble Params
 #===============
 min_vars<-0
-max_vars<-8
+max_vars<-6
 forecast_type<-"preseason"
 stack_metric<-"MAPE"
-num_models<-40
+num_models<-10
+rolling_year_window<-15
 
 inputs<-list(
   yr_start = yr_start,
@@ -173,7 +177,8 @@ inputs<-list(
   max_vars = max_vars,
   forecast_type = forecast_type,
   stack_metric = stack_metric,
-  num_models = num_models
+  num_models = num_models,
+  rolling_year_window
 )
 
 print(inputs)
@@ -381,25 +386,65 @@ dat%>%
   dplyr::select(-c(year,species,period,abundance))%>%
   cor()%>%
   round(.,2)
+
+
+
+{
+  OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+
+nYears <- length(OPIHData[,1])
+earliestYear <- OPIHData[1,1]
+latestYear <- OPIHData[nYears,1]
+
+OPIHData$AdltAll <- c(OPIHData$AdltSRS[1:17],OPIHData$AdltMSM[18:nYears])   # row 18  <-  1986. Use SRS data prior, MSM data post
+OPIHData$AdltAllno83 <- OPIHData$AdltAll
+OPIHData$AdltAllno83[15] <-  NA   #  1983 is removed from model input data
+OPIHData[,"AdltAll"] <- OPIHData$AdltAll
+OPIHData[,"AdltAllno83"] <- OPIHData$AdltAllno83
+
+# Lag Jack and Smolt data to return year
+OPIHData[,"lagJackCR"] <- c(NA, OPIHData$JackCR[1:nYears-1])
+OPIHData[,"lagJackOC"] <- c(NA, OPIHData$JackOC[1:nYears-1])
+OPIHData[,"lagJackOPI"] <- OPIHData$lagJackCR + OPIHData$lagJackOC
+
+OPIHData[,"lagSmD"] <- c(NA, OPIHData$SmD[1:nYears-1])
+OPIHData[,"lagSmCR"] <- c(NA, OPIHData$SmCR[1:nYears-1])
+OPIHData[,"lagSmAdj"] <- OPIHData$lagJackCR*(OPIHData$lagSmD/OPIHData$lagSmCR)   #  Calculate Smolt Adjustment
+
+# Output OPIHData as a .csv file
+#write.table(OPIHData, file = "OPIHData.csv", sep = ", ", row.names=FALSE)
+
+OPIHData%<>%
+  dplyr::rename(year=Year,
+                abundance = AdltAllno83
+                )%>%
+  as_tibble()%>%
+  arrange(year)
+
+Yrlist<-data.frame(year=c(min(OPIHData$year):(max(OPIHData$year)+1)))
+
+OPIHData%<>%
+  right_join(Yrlist)%>%
+  arrange(year)
+  }
 ```
 
 
 
 ## Analysis and summarization
 This section shows the code used to analyze the data and summarize the results
-```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide"}
+```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide",cache=TRUE}
 if(find_best ==T){
-  max_vars<-6
   best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
   saveRDS(best_covariates,"best_covariates_OPI_preseason.rds")
 }
 
 best_covariates<-readRDS("best_covariates_OPI_preseason.rds")
 
-Table1<-best_covariates[[2]]%>%
-  dplyr::slice(1:num_models)%>%
-  kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
-  kable_classic(full_width = F, html_font = "Cambria")
+# Table1<-best_covariates[[2]]%>%
+  # dplyr::slice(1:num_models)%>%
+  # kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
+  # kable_classic(full_width = F, html_font = "Cambria")
 
 
 model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_models]],
@@ -411,32 +456,18 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
 
 
 
-num_models<-10
-leave_yrs<-32
-results<-preseason_forecast_v3(series=dat,
-                  leave_yrs=leave_yrs,
-                  TY_ensemble=TY_ensemble,
-                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
-                  best_covariates[[1]][1:num_models],
-                  first_forecast_period = first_forecast_period,
-                  plot_results = plot_results,
-                  write_model_summaries = write_model_summaries,
-                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
-                  forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  stack_metric = stack_metric,
-                  k=k
-                  )
 
 
-num_models<-length(best_covariates[[1]])
-leave_yrs<-31
-# fit_one_step<-FALSE
+
+fit_one_step<-FALSE
 if(fit_one_step){
+  
+  
   results<-one_step_ahead(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
                   # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
-                  best_covariates[[1]][1:num_models],
+                  best_covariates[[1]],
                   first_forecast_period = first_forecast_period,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
@@ -454,65 +485,76 @@ save(results,file="forecasts.rds")
 }
 
 
-TY_ensemble<-16
-rp<-rolling_perf(results,dat,15,3)
-rp$performance
 
-num_models<-5
-ens<-ensemble(rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,dat,TY_ensemble,k)
 
-ens$forecast_skill %>%filter(grepl("weight",model))
+#calculate rolling performance
+## rolling_year_window<-15
+rp<-rolling_perf(results,dat,rolling_year_window,3)
+# rp$performance
+
+# num_models<-10
+ens<-ensemble(rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,dat,TY_ensemble,k,slide=15)
+# ens$forecast_skill %>%filter(grepl("weight",model))
 
 
 results_old<-evaluate_old_model(data=OPIHData,TY_ensemble=TY_ensemble,yr_end = yr_end)  
 
+for_skill<-
+rp$performance %>% mutate(model="Best_individual") %>% bind_rows(
+ens$forecast_skill %>%filter(grepl("weight",model))
+) %>% 
+  bind_rows(results_old$forecast_skill %>% mutate(model="Current_OPI"))  %>%
+  arrange(MAPE)
 
+# ens$forecast_skill%<>%
+#   # bind_rows(results_old$forecast_skill)%>%
+#   left_join(model_list)%>%
+#   mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
+#   arrange(get(stack_metric))%>%
+#   dplyr::select(!model)
 
-ens$forecast_skill%<>%
-  # bind_rows(results_old$forecast_skill)%>%
-  left_join(model_list)%>%
-  mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
-  arrange(get(stack_metric))%>%
-  dplyr::select(!model)
-
-Table2<-results$forecast_skill%>%
+Table2<-for_skill%>%
   kbl(caption = paste0("Table 2. One step ahead individual and ensemble model performance"),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-results$forecasts%<>%
-  bind_rows(results_old$forecasts)%>%
-  left_join(model_list)%>%
-  mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
-  dplyr::select(!model)
+# results$forecasts%<>%
+#   bind_rows(results_old$forecasts)%>%
+#   left_join(model_list)%>%
+#   mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
+#   dplyr::select(!model)
 
 
-Table3<-results$forecasts%>%
-  filter(year==max(year))%>%
-  dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`,Stacking_weight)%>%
-  kbl(caption = paste0("Table 3.Individual ensemble member predictions from the best ",num_models," models. These models were used to develop an ensemble using stacking weights which were optimized based on one-year-ahead performance over ",leave_yrs-1," years using ",stack_metric,". Optimized stacking weights are shown."),digits =2)%>%
+Table3<-
+  # results$forecasts%>%
+  # filter(year==max(year))%>%
+  rp$top_mods %>% filter(rank==1) %>% arrange(year) %>% 
+  dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`) %>% #,Stacking_weight)%>%
+  kbl(caption = paste0("Table 3. Individual models which performed the best in",stack_metric," based on a",rolling_year_window, "year retrsopective analysis, and their forecasts."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
   
-best_model<-results$forecast_skill%>%
-           filter(get(stack_metric) ==min(get(stack_metric)))%>%
-           dplyr::select(model_name)%>%
-           dplyr::slice(1)%>%
-           unlist()%>%pluck()
+best_model<-for_skill$model[1]
 
-if(length(unique(results$forecasts$model_name))>1){
-  results_best<-results$forecasts%>%
-  ungroup()%>%
-  filter(model_name == best_model
-         )%>%
-  dplyr::select(-period)
-}
+
+  results_best<-rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individual") %>% bind_rows(
+  ens$ensembles %>% left_join(dat %>% dplyr::select(year,abundance)) %>% mutate(model_name=model)
+) %>% filter(model==best_model) %>% 
+  dplyr::select(year,model_name,abundance,
+                  predicted_abundance,"Lo 50",
+                "Hi 50","Lo 95","Hi 95") %>% 
+  mutate(error=predicted_abundance-abundance,
+         pct_errpr=error/abundance)
+
+
+
+
 
 
 Table4<-results_best%>%
-  dplyr::select(!c("train_test","Stacking_weight","model_name") & !c(covariates[covariates%in%names(results_best)]))%>%
-  kbl(caption = paste0("Table 4. One-year-ahead forecasts of OPI ", species,". Additional covariates are included in the table below."),digits =2)%>%
+  # dplyr::select(!c("train_test","Stacking_weight","model_name") & !c(covariates[covariates%in%names(results_best)]))%>%
+  kbl(caption = paste0("Table 4. One-year-ahead forecasts of OPI ", species," based on the ",best_model," model."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
@@ -525,9 +567,10 @@ Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   scale_x_continuous(breaks=unique(results$forecasts$year))
 
 
-Figure2<-ggplot(results$forecasts,aes(x=year,y=predicted_abundance,col=model_name))+
+Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individual") %>% bind_rows(
+  ens$ensembles %>% left_join(dat %>% dplyr::select(year,abundance)) %>% mutate(model_name=model)),aes(x=year,y=predicted_abundance,col=model))+
   geom_line()+
-  geom_line(data=results_best,mapping=aes(x=year,y=predicted_abundance),size=1.25,col="black")+
+  geom_line(data=results_best,mapping=aes(x=year,y=predicted_abundance),size=1.1,col="black")+
   geom_line(data=results_old$forecasts,mapping=aes(x=year,y=predicted_abundance),size=1.25,col="grey")+
   geom_point(aes(x=year,y=abundance),color="black")+
   ylim(0,NA)+
@@ -539,16 +582,19 @@ Figure2<-ggplot(results$forecasts,aes(x=year,y=predicted_abundance,col=model_nam
 Figure3<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100)),aes(x=year,y=pct_error))+geom_line()
 ```
 
+
+
+
 ## Results
 
-Table 1 shows the model selection results sorted by AIC based on in-sample fits of ARIMA models tested on all subsets of covariates to the full (all years) data set. The ARIMA model structure for each covariate set was selected by the auto.arima function in the forecast package. These model selection results are generated as a first step to identify the top models for further use in evaluating out-of-sample one-step-ahead forecast skill, and constructing ensembles.
-```{r message=FALSE, warning=FALSE, results="show"}
-Table1
-```
+<!-- Table 1 shows the model selection results sorted by AIC based on in-sample fits of ARIMA models tested on all subsets of covariates to the full (all years) data set. The ARIMA model structure for each covariate set was selected by the auto.arima function in the forecast package. These model selection results are generated as a first step to identify the top models for further use in evaluating out-of-sample one-step-ahead forecast skill, and constructing ensembles. -->
+<!-- ```{r message=FALSE, warning=FALSE, results="show"} -->
+<!-- Table1 -->
+<!-- ``` -->
 
 
 
-Table 2 shows the model selection results sorted by `r stack_metric` based on `r TY_ensemble` years of out-of-sample one-step-ahead leave-one-out cross validation. Results include both individual ARIMA models as well as weighted ensembles. Ensembles include both a "stacking weight" ensemble where an optimization algorithm is used to identify the weights that maximize out-of-sample one-step-ahead performance using the selected performance metric for the training years, as more traditional ensembles using a harmonic mean where weight $w$ may be calculated for model $i$ from model set $K$ based on it's skill $s$ versus that of other models in the set, where $s$ may be measured by RMSE, MASE, MAPE, MSA, etc:
+Table 2 shows the model selection results sorted by `r stack_metric` based on `r TY_ensemble-1` years of out-of-sample one-step-ahead leave-one-out cross validation. Results include both individual ARIMA models as well as weighted ensembles. Ensembles include both a "stacking weight" ensemble where an optimization algorithm is used to identify the weights that maximize out-of-sample one-step-ahead performance over a sliding `r 15` year window using the selected performance metric for the training years, as more traditional ensembles using a harmonic mean where weight $w$ may be calculated for model $i$ from model set $K$ based on it's skill $s$ versus that of other models in the set, where $s$ may be measured by RMSE, MASE, MAPE, MSA, etc:
 $${w}_{i} = \frac {{s}_{i}^{-1}} {\sum_{i=1}^{K} {s}_{i}^{-1}} $$ 
 ```{r message=FALSE, warning=FALSE, results="show"}
 Table2
@@ -556,7 +602,7 @@ Table2
 
 
 
-Table 3 shows predictions of total runsize for the final year in the data set for each individual ARIMA model as well as weighted ensembles, including MLEs, 50% and 95% prediction intervals, and the stacking weights the optimization algorithm identified for each individual model to develop the stacked model ensemble in the final year. Stacking weights are updated annually through iterative optimization, but stacking weights for prior years are not shown.
+Table 3 shows predictions of total runsize for the individual model that would have been selected in each year, as well as which model would have been selected. 
 ```{r message=FALSE, warning=FALSE, results="show"}
 Table3
 ```
@@ -573,7 +619,7 @@ Figure1
 ```
 
 
-Figure 2 shows the annual one-step-ahead predictions of abundance (lines) for the entire top model set based on in-sample AIC (colored lines) that was used in one step ahead evaluation and ensemble development relative to the observed abundance (black dots), the best model forecast (thick black line), and the existing OPI forecast (thick grey line).
+Figure 2 shows the annual one-step-ahead predictions of abundance (lines) for the entire  model set and the observed abundance (black dots), the best model forecast (thick black line), and the existing OPI forecast (thick grey line).
 ```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 2. One-step-ahead predictions (lines) of total OPI coho abundance for the top model set relative to observed abundance (black dots)."}
 Figure2
 ```

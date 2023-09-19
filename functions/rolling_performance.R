@@ -27,7 +27,11 @@ tops<-out%>%
 perf<-tops%>% 
   ungroup %>% 
   filter(rank==1) %>% 
-  summarize(MAPE=mean(APE,na.rm=T))
+  summarize(MAPE=mean(APE,na.rm=T)*100,
+            RMSE = sqrt(mean(error^2,na.rm=T)),
+            MSA = 100*(exp(mean(abs(log(abundance/predicted_abundance)),na.rm=T))-1))
+
+
 
 
 return(list(

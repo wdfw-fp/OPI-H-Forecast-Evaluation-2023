@@ -1,4 +1,4 @@
-ensemble<-function(forecasts,series,TY_ensemble,k){
+ensemble<-function(forecasts,series,TY_ensemble,k,slide){
 
   # forecasts<-forecasts %>% left_join(series %>% dplyr::select(year,abundance))
 
@@ -15,9 +15,7 @@ ensemble<-function(forecasts,series,TY_ensemble,k){
   
   ensembles<-NULL
   for(i in (yrrange[2]-TY_ensemble):maxdata_year){
-    years<-c(yrrange[1]:i)
-    
-
+    years<-seq(to=i,length.out=slide)#c(yrrange[1]:i)
     
     tdat<-forecasts%>%
       dplyr::filter(
