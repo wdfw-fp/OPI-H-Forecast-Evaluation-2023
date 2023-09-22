@@ -15,36 +15,86 @@ output:
   word_document:
     toc: yes
     toc_depth: '3'
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
-
+```{=html}
 <script>
    $(document).ready(function() {
      $head = $('#header');
      $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
    });
 </script>
-
+```
+```{=html}
 <script>
    $(document).ready(function() {
      $head = $('#header');
      $head.prepend('<img src=\"https://raw.githubusercontent.com/tbuehrens/Salmon_Inseason_Forecasts/test/data/ODFW_logo.png"\" style=\"float: right;width: 150px;\"/>')
    });
 </script>
-***
+```
+
+------------------------------------------------------------------------
 
 Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 
-***
+------------------------------------------------------------------------
 
 # Overview
-This report details the process of fitting Auto-Regressive Integrated Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The model functions are flexibly configured to allow the user to supply total runsize data and a series of covariates. 
+
+This report details the process of fitting Auto-Regressive Integrated
+Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The
+model functions are flexibly configured to allow the user to supply
+total runsize data and a series of covariates.
+
+The forecasting process begins with identifying a set of
+$n^{predictors}$ predictors, which may include jack returns and
+environmental variables. A total of $n^{models} = \sum_{K=1}^{n^{max}{{n^{predictors}}\choose{k}}$ ARIMA models
+including all combinations of the predictors up to a maximum number of
+predictors $n^{max}$ are then fit to subsets of the data starting with the first
+year, $t=1$, and running through some subsequent year, $t=i$. The
+structure of the auto-regressive, difference, and moving average
+components of each model are selected based on AICc. Each model is then
+used to generate a forecast of returns in year $i+1$. This process is
+repeated for $n^{years}$ consecutive years to create a set of $n^{models}*n^{years}$
+one-year-ahead forecasts.
 
 
-<!-- The forecasting process begins with identifying a set of predictors, which may include jack returns and environmental variables. A total of $n$ ARIMA models including all combinations of the predictors up to a maximum number of predictors are then fit to subsets of the data starting with the first year, $t=1$, and running through some subsequent year, $t=i$. The structure of the auto-regressive, difference, and moving average components of each model are selected based on AICc. Each model is then used to generate a forecast of returns in year $i+1$. This process is repeated for $n$ years to create a set of  -->
 
-<!-- ## Setup -->
+
+
+Identify number of "leave out" years to perform one-step ahead
+evaluation on all models individual models
+
+Identify subset of one-step-ahead years to generate ensembles using
+individual models (need at least one year of individual model out-of-bag
+predictions to generate ensembles)
+
+Fit auto.arima to all subsets of covariates for entire observed
+timeseries and use AIC to identify a model subset to take forward for
+evaluation...this step does cannot improve the final model but merely
+speed up evaluation by limiting it to better models...this step is
+optional
+
+Take best models from step 4 (can be all models) and generate
+one-year-ahead forecasts for "leave-out" years
+
+Generate ensembles using harmonic means (see equation in markdown) and
+stacking weights optimized each year over the one-step-ahead predictions
+up to the prior year
+
+Determine skill metric of choice (RMSE, MAPE, MSA, etc).
+
+Evaluate all individual AND ensemble models using etc. using skill
+metric on the subset of leave-years ensembles made predictions
+for...select best model
+
+Description of Covariates <!-- ## Setup -->
 <!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
+
 ```{r set_options, echo = TRUE, message = FALSE}
 options(width = 100)
 knitr::opts_chunk$set(message = FALSE)
@@ -52,12 +102,14 @@ set.seed(123)
 ```
 
 <!-- We also need a couple of helper functions which we will define -->
+
 ```{r load_funcs, message = FALSE, warning = FALSE,results = "hide"}
 wd_functions<-"functions"
 sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
 ```
 
 <!-- Here we will load & install packages we need to use (needs internet connection if packages not already installed) -->
+
 ```{r load_packages, message = FALSE, warning = FALSE,results = "hide"}
 packages_list<-c("tidyverse"
                  ,"forecast"
@@ -91,8 +143,11 @@ packages_list<-c("tidyverse"
 install_or_load_pack(pack = packages_list)
 ```
 
-## User Inputs 
-This section contains parameters input to control the forecasting process
+## User Inputs
+
+This section contains parameters input to control the forecasting
+process
+
 ```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
 #=========
 # Raw Data
@@ -185,7 +240,14 @@ print(inputs)
 ```
 
 ## Get Raw Data
-Here we load the response variable (observed OPI coho abundance) and covariates used in past forecasts from Erik Suring's GitHub repository [**OPIH Evaluation**](https://github.com/ErikSuring/OPIH_Evaluation). We also load covariates used in the Oregon Coast Natural (OCN) coho forecast, as well as ancillary additional covariates. More details are available in the appendix.
+
+Here we load the response variable (observed OPI coho abundance) and
+covariates used in past forecasts from Erik Suring's GitHub repository
+[**OPIH Evaluation**](https://github.com/ErikSuring/OPIH_Evaluation). We
+also load covariates used in the Oregon Coast Natural (OCN) coho
+forecast, as well as ancillary additional covariates. More details are
+available in the appendix.
+
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 
 make_dat<-function(file_path=NULL){
@@ -429,10 +491,11 @@ OPIHData%<>%
   }
 ```
 
-
-
 ## Analysis and summarization
-This section shows the code used to analyze the data and summarize the results
+
+This section shows the code used to analyze the data and summarize the
+results
+
 ```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide",cache=TRUE}
 if(find_best ==T){
   best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
@@ -513,6 +576,10 @@ ens$forecast_skill %>%filter(grepl("weight",model))
 #   arrange(get(stack_metric))%>%
 #   dplyr::select(!model)
 
+```
+
+```{r results_stuff, message=FALSE, warning=FALSE, results="hide",cache=TRUE}
+
 Table2<-for_skill%>%
   kbl(caption = paste0("Table 2. One step ahead individual and ensemble model performance"),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
@@ -564,7 +631,7 @@ Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   geom_line()+
   geom_point(aes(x=year,y=abundance))+
   ylim(0,NA)+
-  scale_x_continuous(breaks=unique(results$forecasts$year))
+  scale_x_continuous(breaks=unique(results_best$year))
 
 
 Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individual") %>% bind_rows(
@@ -574,42 +641,61 @@ Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individua
   geom_line(data=results_old$forecasts,mapping=aes(x=year,y=predicted_abundance),size=1.25,col="grey")+
   geom_point(aes(x=year,y=abundance),color="black")+
   ylim(0,NA)+
-  scale_x_continuous(breaks=unique(results$forecasts$year))+
+  scale_x_continuous(breaks=unique(results_best$year))+
   theme(legend.position = "none")
   #theme(legend.key.size=unit(.15,'cm'),legend.position = "top")
 
 
-Figure3<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100)),aes(x=year,y=pct_error))+geom_line()
+Figure3<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=abs(pct_errpr*100))),aes(x=year,y=pct_error,color=model_name))+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))
+
+Figure3.1<-ggplot(results_old$forecasts%>%mutate(pct_error=(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=(pct_errpr*100))),aes(x=year,y=pct_error,color=model_name))+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))
+
+Figure3.2<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=abs(pct_errpr*100))),aes(x=year,y=pct_error,fill=model_name))+geom_bar(position="dodge", stat="identity")+scale_fill_manual(values=c("darkblue","darkred"))
+
+
+Figure3.3<-ggplot(results_old$forecasts%>%mutate(pct_error=(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=(pct_errpr*100))),aes(x=year,y=pct_error,fill=model_name))+geom_bar(position="dodge", stat="identity")+scale_fill_manual(values=c("darkblue","darkred"))
+
 ```
-
-
-
 
 ## Results
 
 <!-- Table 1 shows the model selection results sorted by AIC based on in-sample fits of ARIMA models tested on all subsets of covariates to the full (all years) data set. The ARIMA model structure for each covariate set was selected by the auto.arima function in the forecast package. These model selection results are generated as a first step to identify the top models for further use in evaluating out-of-sample one-step-ahead forecast skill, and constructing ensembles. -->
+
 <!-- ```{r message=FALSE, warning=FALSE, results="show"} -->
+
 <!-- Table1 -->
+
 <!-- ``` -->
 
+Table 2 shows the model selection results sorted by `r stack_metric`
+based on `r TY_ensemble-1` years of out-of-sample one-step-ahead
+leave-one-out cross validation. Results include both individual ARIMA
+models as well as weighted ensembles. Ensembles include both a "stacking
+weight" ensemble where an optimization algorithm is used to identify the
+weights that maximize out-of-sample one-step-ahead performance over a
+sliding `r 15` year window using the selected performance metric for the
+training years, as more traditional ensembles using a harmonic mean
+where weight $w$ may be calculated for model $i$ from model set $K$
+based on it's skill $s$ versus that of other models in the set, where
+$s$ may be measured by RMSE, MASE, MAPE, MSA, etc:
+$${w}_{i} = \frac {{s}_{i}^{-1}} {\sum_{i=1}^{K} {s}_{i}^{-1}} $$
 
-
-Table 2 shows the model selection results sorted by `r stack_metric` based on `r TY_ensemble-1` years of out-of-sample one-step-ahead leave-one-out cross validation. Results include both individual ARIMA models as well as weighted ensembles. Ensembles include both a "stacking weight" ensemble where an optimization algorithm is used to identify the weights that maximize out-of-sample one-step-ahead performance over a sliding `r 15` year window using the selected performance metric for the training years, as more traditional ensembles using a harmonic mean where weight $w$ may be calculated for model $i$ from model set $K$ based on it's skill $s$ versus that of other models in the set, where $s$ may be measured by RMSE, MASE, MAPE, MSA, etc:
-$${w}_{i} = \frac {{s}_{i}^{-1}} {\sum_{i=1}^{K} {s}_{i}^{-1}} $$ 
 ```{r message=FALSE, warning=FALSE, results="show"}
 Table2
 ```
 
+Table 3 shows predictions of total runsize for the individual model that
+would have been selected in each year, as well as which model would have
+been selected.
 
-
-Table 3 shows predictions of total runsize for the individual model that would have been selected in each year, as well as which model would have been selected. 
 ```{r message=FALSE, warning=FALSE, results="show"}
 Table3
 ```
 
+Table 4 and Figure 1 shows annual one-step-ahead predictions of
+abundance for the best model, including 50 and 95% prediction intervals
+relative to the observed abundance (black dots in Figure 1).
 
-
-Table 4 and Figure 1 shows annual one-step-ahead predictions of abundance for the best model, including 50 and 95% prediction intervals relative to the observed abundance (black dots in Figure 1).
 ```{r message=FALSE, warning=FALSE, results="show"}
 Table4
 ```
@@ -618,19 +704,35 @@ Table4
 Figure1
 ```
 
+Figure 2 shows the annual one-step-ahead predictions of abundance
+(lines) for the entire model set and the observed abundance (black
+dots), the best model forecast (thick black line), and the existing OPI
+forecast (thick grey line).
 
-Figure 2 shows the annual one-step-ahead predictions of abundance (lines) for the entire  model set and the observed abundance (black dots), the best model forecast (thick black line), and the existing OPI forecast (thick grey line).
 ```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 2. One-step-ahead predictions (lines) of total OPI coho abundance for the top model set relative to observed abundance (black dots)."}
 Figure2
 ```
 
-Figure 3 shows the absolute percent forecast error of the current model over time, which is a generally increasing pattern.
+Figure 3 shows the absolute percent forecast error of the current model
+over time, which is a generally increasing pattern.
+
 ```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. the absolute percent forecast error of the current model over time."}
 Figure3
 ```
 
+
+
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. the absolute percent forecast error of the current model over time."}
+Figure3.1
+Figure3.2
+Figure3.3
+```
+
 ## Appendix
+
 Appendix 1 shows the raw data and covariates used in modeling.
+
 ```{r message=FALSE, warning=FALSE, results="show"}
 dat%>%
   dplyr::select(-period)%>%
@@ -638,28 +740,27 @@ dat%>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
 
+OPI data and covariate notes: 1) Jack OPI = Total Jack CR and Jack OC.
+2) Jack CR = Columbia River jack returns corrected for small adults. 3)
+Jack OC = Oregon coastal and California hatchery jack returns corrected
+for small adults. 4) Total OPI = Columbia River (Sm D + Sm CR), Oregon
+coastal and Klamath Basin. 5) Sm CR = Columbia River smolt releases from
+the previous year expected to return as adults in the year listed. 6) Sm
+D = Columbia River delayed smolt releases from the previous year
+expected to return as adults in the year listed 7) SmAdj = JackCR\*(Sm
+D/Sm CR) (this is a covariate used in the past OPI forecast)
 
-OPI data and covariate notes:
-1) Jack OPI = Total Jack CR and Jack OC. 
-2) Jack CR = Columbia River jack returns corrected for small adults. 
-3) Jack OC = Oregon coastal and California hatchery jack returns corrected for small adults. 
-4) Total OPI = Columbia River (Sm D + Sm CR), Oregon coastal and Klamath Basin. 
-5) Sm CR = Columbia River smolt releases from the previous year expected to return as adults in the year listed. 
-6) Sm D = Columbia River delayed smolt releases from the previous year expected to return as adults in the year listed
-7) SmAdj = JackCR*(Sm D/Sm CR) (this is a covariate used in the past OPI forecast)
+OCN covariates 1) Multivariate ENSO Index (Oct-Dec; t-1) 2) Spring
+Transition (Julian date; t-1) 3) Upwelling (July-Sept; t-1) 4) Upwelling
+(Sep-Nov; t-1) 5) Sea Surface Temperature (Jan; t) 6) Sea Surface Height
+(April-June; t-1) 7Z)PDO (mean May-July; averaged over the 4-years prior
+to the return year)
 
-OCN covariates
-1) Multivariate ENSO Index (Oct-Dec; t-1)
-2) Spring Transition (Julian date; t-1)
-3) Upwelling (July-Sept; t-1)
-4) Upwelling (Sep-Nov; t-1)
-5) Sea Surface Temperature (Jan; t)
-6) Sea Surface Height (April-June; t-1)
-7Z)PDO (mean May-July; averaged over the 4-years prior to the return year)
-
-Ancillary Covariates
-1) [Pacific Decadal Oscillation](https://www.ncei.noaa.gov/access/monitoring/pdo/)
-2) [North Pacific Gyre Oscillation](http://www.o3d.org/npgo/)
-3) [NOAA Ocean Indicators](https://www.fisheries.noaa.gov/west-coast/science-data/ocean-ecosystem-indicators-pacific-salmon-marine-survival-northern)
-4) [NOAA NOAA Extended Reconstructed SST version 5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html)
-5) [NOAA Oceanic Nino 3.4 Index (lag 1 Oct-December mean)](https://psl.noaa.gov/gcos_wgsp/Timeseries/Nino34/)
+Ancillary Covariates 1) [Pacific Decadal
+Oscillation](https://www.ncei.noaa.gov/access/monitoring/pdo/) 2) [North
+Pacific Gyre Oscillation](http://www.o3d.org/npgo/) 3) [NOAA Ocean
+Indicators](https://www.fisheries.noaa.gov/west-coast/science-data/ocean-ecosystem-indicators-pacific-salmon-marine-survival-northern)
+4) [NOAA NOAA Extended Reconstructed SST version
+5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html) 5) [NOAA
+Oceanic Nino 3.4 Index (lag 1 Oct-December
+mean)](https://psl.noaa.gov/gcos_wgsp/Timeseries/Nino34/)
