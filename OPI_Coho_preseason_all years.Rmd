@@ -523,10 +523,8 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
 
 
 
-fit_one_step<-FALSE
-if(fit_one_step){
-  
-  
+
+if(!exists("results/forecasts.csv")){
   results<-one_step_ahead(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
@@ -542,10 +540,8 @@ if(fit_one_step){
                   )
 
 write.csv(results,"forecsts.csv")
-
-save(results,file="forecasts.rds")
 }else{
-  results<-read_csv("forecsts.csv")
+  results<-read_csv("results/forecsts.csv")
 }
 
 
