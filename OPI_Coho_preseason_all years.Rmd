@@ -539,9 +539,9 @@ if(!exists("results/forecasts.csv")){
                   k=k
                   )
 
-write.csv(results,"forecsts.csv")
+write.csv(results,"forecasts.csv")
 }else{
-  results<-read_csv("results/forecsts.csv")
+  results<-read_csv("results/forecasts.csv")
 }
 
 
