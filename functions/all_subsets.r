@@ -1,6 +1,15 @@
-all_subsets<-function(series,covariates,min,max,type,fit=TRUE){
+all_subsets<-function(series,   # data with annual values of response (abundance) and predictor covariates
+                      covariates, # vector of covariates to include in models
+                      min, # minimum number of covariates within individual model
+                      max, # maximum number of covariates within individual model
+                      type, # specifies whether an inseason or preseason forecast
+                      fit=TRUE # flag for whether to fit models
+                      ){ 
+  #is
   freq=ifelse(type=="inseason",2,1)
   seasonal=ifelse(type=="inseason",T,F)
+  
+  #processing data
   series<-series%>%
     ungroup()%>%
     dplyr::select(year,species,period,abundance,all_of(covariates))%>%
@@ -11,13 +20,15 @@ all_subsets<-function(series,covariates,min,max,type,fit=TRUE){
       )
     )
   
+  #empty object to hold outputs
   vars<-list()
   AICc=c()
   formula=c()
   model_num = c()
   tmin<-ifelse(min==0,1,min)
-  for(i in tmin:max){
-    temp<-combn(covariates,i, simplify = FALSE)
+  
+  for(i in tmin:max){#loop over number of covariates pre model
+    temp<-combn(covariates,i, simplify = FALSE) # create all unique combinations of length i
     for(j in 1:length(temp)){
       vars[[length(vars) + 1]]<-temp[[j]]
     }
