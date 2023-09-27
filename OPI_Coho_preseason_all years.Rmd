@@ -366,7 +366,8 @@ enso<-read_table("https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.ano
 #Get ERSST data: get_ersst_v5_data takes A LONG TIME (1 hr) vs. get_ersst_v5_data_V2 which is much quicker!
 #==========================================================================================================
 sstdat<-get_ersst_v5_data_V2(years=c(min(Yrlist$year):max(Yrlist$year)),
-                             data.dir="C:\\Users\\sorelmhs\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
+                             data.dir="https://stateofwa.sharepoint.com/:u:/r/sites/DFW-TeamWDFWOPIModelReview/Shared%20Documents/General/sst.mnmean.nc?csf=1&web=1&e=mhx1bc",
+                               #"C:\\Users\\sorelmhs\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
                              ncfilename="sst.mnmean.nc",
                              latrange=c(44,50),
                              lonrange=c(-125,-120)
