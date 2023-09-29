@@ -189,7 +189,8 @@ inputs<-list(
   forecast_type = forecast_type,
   stack_metric = stack_metric,
   num_models = num_models,
-  rolling_year_window
+  rolling_year_window=rolling_year_window,
+  redo_forecasts=redo_forecasts
 )
 
 print(inputs)
@@ -477,12 +478,7 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
   dplyr::rename(model=rowname,model_name=value)
 
 
-
-
-
-
-
-if(!exists("results/forecasts.rds")|redo_forecasts=TRUE){
+if(!file.exists("results/forecasts.rds")|redo_forecasts==TRUE){
   results<-one_step_ahead(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
@@ -535,7 +531,7 @@ ens$forecast_skill %>%filter(grepl("weight",model))
 
 ```{r results_stuff, message=FALSE, warning=FALSE, results="hide",cache=TRUE}
 
-Table2<-for_skill%>%
+Table2<-for_skill%>% mutate(model=sub("_"," ",model))%>% rename(Model=model)%>% 
   kbl(caption = paste0("Table 2. One step ahead individual and ensemble model performance"),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
@@ -552,6 +548,7 @@ Table3<-
   # filter(year==max(year))%>%
   rp$top_mods %>% filter(rank==1) %>% arrange(year) %>% 
   dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`) %>% #,Stacking_weight)%>%
+     rename(Year=year,Model=model_name,`Predicted abundance` =predicted_abundance) %>% 
   kbl(caption = paste0("Table 3. Individual models which performed the best in",stack_metric," based on a",rolling_year_window, "year retrsopective analysis, and their forecasts."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
@@ -575,6 +572,7 @@ best_model<-for_skill$model[1]
 
 
 Table4<-results_best%>%
+   rename(Year=year,Model=model_name,Abundance=abundance,`Predicted abundance`=predicted_abundance,`% error`=pct_errpr) %>% 
   # dplyr::select(!c("train_test","Stacking_weight","model_name") & !c(covariates[covariates%in%names(results_best)]))%>%
   kbl(caption = paste0("Table 4. One-year-ahead forecasts of OPI ", species," based on the ",best_model," model."),digits =2)%>%
   kable_classic(full_width = F, html_font = "Cambria")
@@ -586,7 +584,8 @@ Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
   geom_line()+
   geom_point(aes(x=year,y=abundance))+
   ylim(0,NA)+
-  scale_x_continuous(breaks=unique(results_best$year))
+  scale_x_continuous(breaks=unique(results_best$year))+ylab("Ocean abundance")+xlab("")
+
 
 
 Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individual") %>% bind_rows(
@@ -597,18 +596,14 @@ Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individua
   geom_point(aes(x=year,y=abundance),color="black")+
   ylim(0,NA)+
   scale_x_continuous(breaks=unique(results_best$year))+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  ylab("Ocean abundance")+xlab("")
   #theme(legend.key.size=unit(.15,'cm'),legend.position = "top")
 
 
-Figure3<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=abs(pct_errpr*100))),aes(x=year,y=pct_error,color=model_name))+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))
+Figure3<-ggplot((results_old$forecasts%>%mutate(model_name="Current_OPI") %>% bind_rows(results_best ) %>% mutate(Model=sub("_"," ",model_name)) %>%  mutate(pct_error=log10(((predicted_abundance-abundance)/abundance)+1))) %>% filter(year<2023),
+                  aes(x=year,y=pct_error,color=Model))+geom_hline(yintercept=0)+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))+xlab("")+ylab(expression(paste(log[10], "(% error +1)")))
 
-Figure3.1<-ggplot(results_old$forecasts%>%mutate(pct_error=(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=(pct_errpr*100))),aes(x=year,y=pct_error,color=model_name))+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))
-
-Figure3.2<-ggplot(results_old$forecasts%>%mutate(pct_error=abs(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=abs(pct_errpr*100))),aes(x=year,y=pct_error,fill=model_name))+geom_bar(position="dodge", stat="identity")+scale_fill_manual(values=c("darkblue","darkred"))
-
-
-Figure3.3<-ggplot(results_old$forecasts%>%mutate(pct_error=(((predicted_abundance-abundance)/abundance)*100),model_name="Current_OPI") %>% bind_rows(results_best %>% mutate(pct_error=(pct_errpr*100))),aes(x=year,y=pct_error,fill=model_name))+geom_bar(position="dodge", stat="identity")+scale_fill_manual(values=c("darkblue","darkred"))
 
 ```
 
@@ -668,21 +663,14 @@ forecast (thick grey line).
 Figure2
 ```
 
-Figure 3 shows the absolute percent forecast error of the current model
-over time, which is a generally increasing pattern.
+Figure 3 shows the log transformed percent forecast error of the current and new model over time.
 
-```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. the absolute percent forecast error of the current model over time."}
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. The log transformed percent forecast error of the current and new model over time."}
 Figure3
 ```
 
 
 
-
-```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. the absolute percent forecast error of the current model over time."}
-Figure3.1
-Figure3.2
-Figure3.3
-```
 
 ## Appendix
 
