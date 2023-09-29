@@ -50,51 +50,6 @@ Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The
 model functions are flexibly configured to allow the user to supply
 total runsize data and a series of covariates.
 
-The forecasting process begins with identifying a set of
-$n^{predictors}$ predictors, which may include jack returns and
-environmental variables. A total of $n^{models} = \sum_{K=1}^{n^{max}{{n^{predictors}}\choose{k}}$ ARIMA models
-including all combinations of the predictors up to a maximum number of
-predictors $n^{max}$ are then fit to subsets of the data starting with the first
-year, $t=1$, and running through some subsequent year, $t=i$. The
-structure of the auto-regressive, difference, and moving average
-components of each model are selected based on AICc. Each model is then
-used to generate a forecast of returns in year $i+1$. This process is
-repeated for $n^{years}$ consecutive years to create a set of $n^{models}*n^{years}$
-one-year-ahead forecasts.
-
-
-
-
-
-Identify number of "leave out" years to perform one-step ahead
-evaluation on all models individual models
-
-Identify subset of one-step-ahead years to generate ensembles using
-individual models (need at least one year of individual model out-of-bag
-predictions to generate ensembles)
-
-Fit auto.arima to all subsets of covariates for entire observed
-timeseries and use AIC to identify a model subset to take forward for
-evaluation...this step does cannot improve the final model but merely
-speed up evaluation by limiting it to better models...this step is
-optional
-
-Take best models from step 4 (can be all models) and generate
-one-year-ahead forecasts for "leave-out" years
-
-Generate ensembles using harmonic means (see equation in markdown) and
-stacking weights optimized each year over the one-step-ahead predictions
-up to the prior year
-
-Determine skill metric of choice (RMSE, MAPE, MSA, etc).
-
-Evaluate all individual AND ensemble models using etc. using skill
-metric on the subset of leave-years ensembles made predictions
-for...select best model
-
-Description of Covariates <!-- ## Setup -->
-<!-- All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results. Here we configure R to perform our analysis and generate our outputs -->
-
 ```{r set_options, echo = TRUE, message = FALSE}
 options(width = 100)
 knitr::opts_chunk$set(message = FALSE)
@@ -539,7 +494,7 @@ if(!exists("results/forecasts.csv")){
                   k=k
                   )
 
-write.csv(results,"forecasts.csv")
+write.csv(results,"results/forecasts.csv")
 }else{
   results<-read_csv("results/forecasts.csv")
 }
