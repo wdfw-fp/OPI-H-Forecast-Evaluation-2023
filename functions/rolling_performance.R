@@ -19,7 +19,7 @@ tops<-out%>%
         rank<=mod_include) %>%
   left_join(model_list) %>% 
   # dplyr::select(year,MAPE,rank,model,model_name) %>% 
-  arrange(desc(year),rank) %>% dplyr::select(-1)
+  arrange(desc(year),rank) #%>% dplyr::select(-1)
   
 
 

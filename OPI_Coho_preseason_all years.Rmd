@@ -156,6 +156,7 @@ plot_results = F
 first_forecast_period = 1
 write_model_summaries = TRUE
 find_best=T
+redo_forecasts=FALSE #where to do one-year-ahead forecasts for all models and years if there is a file saved with some. Change to TRUE if changing the min or max number of variables allowed per model, the covariates, or adding a new year of data. TO-DO: add functionality to only make projections for years or models that don't exist and get rid of any that you don't want (e.g., if you reduce max number of covariates per model)
 #==============
 #Ensemble Params
 #===============
@@ -391,6 +392,8 @@ dat<-OPIHData%>%
     )
   )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
 }
+  
+  
 }
 
 dat<-make_dat("data/dat.csv")
@@ -406,7 +409,7 @@ dat%>%
   round(.,2)
 
 
-
+#read in OPIH data (again) to use for evaluating the current (as of 2022) forecasting methodology
 {
   OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
 
@@ -479,7 +482,7 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
 
 
 
-if(!exists("results/forecasts.csv")){
+if(!exists("results/forecasts.rds")|redo_forecasts=TRUE){
   results<-one_step_ahead(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
@@ -494,9 +497,9 @@ if(!exists("results/forecasts.csv")){
                   k=k
                   )
 
-write.csv(results,"results/forecasts.csv")
+save(results,file="results/forecasts.rds")
 }else{
-  results<-read_csv("results/forecasts.csv")
+  load("results/forecasts.rds")
 }
 
 
