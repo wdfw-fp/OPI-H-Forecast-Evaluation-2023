@@ -188,7 +188,7 @@ plot_results = F
 first_forecast_period = 1
 write_model_summaries = TRUE
 find_best=T
-redo_forecasts=TRUE #where to do one-year-ahead forecasts for all models and years if there is a file saved with some. Change to TRUE if changing the min or max number of variables allowed per model, the covariates, or adding a new year of data. TO-DO: add functionality to only make projections for years or models that don't exist and get rid of any that you don't want (e.g., if you reduce max number of covariates per model)
+redo_forecasts=FALSE #where to do one-year-ahead forecasts for all models and years if there is a file saved with some. Change to TRUE if changing the min or max number of variables allowed per model, the covariates, or adding a new year of data. TO-DO: add functionality to only make projections for years or models that don't exist and get rid of any that you don't want (e.g., if you reduce max number of covariates per model)
 #==============
 #Ensemble Params
 #===============
@@ -665,8 +665,16 @@ Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
 
 
 
-Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individual") %>% bind_rows(
-  ens$ensembles %>% left_join(dat %>% dplyr::select(year,abundance)) %>% mutate(model_name=model)),aes(x=year,y=predicted_abundance,col=model))+
+Figure2<-ggplot(rp$top_mods %>%
+                  filter(rank==1) %>%
+                  mutate(model="Best_individual") %>%
+                  filter(year > (yr_end-TY_ensemble))%>%
+                  bind_rows(
+                    ens$ensembles %>%
+                      left_join(dat %>%
+                                  dplyr::select(year,abundance)) %>%
+                      mutate(model_name=model))
+                ,aes(x=year,y=predicted_abundance,col=model))+
   geom_line()+
   geom_line(data=results_best,mapping=aes(x=year,y=predicted_abundance),size=1.1,col="black")+
   geom_line(data=results_old$forecasts,mapping=aes(x=year,y=predicted_abundance),size=1.25,col="grey")+
@@ -678,7 +686,7 @@ Figure2<-ggplot(rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individua
   #theme(legend.key.size=unit(.15,'cm'),legend.position = "top")
 
 
-Figure3<-ggplot((results_old$forecasts%>%mutate(model_name="Current_OPI") %>% bind_rows(results_best ) %>% mutate(Model=sub("_"," ",model_name)) %>%  mutate(pct_error=log10(((predicted_abundance-abundance)/abundance)+1))) %>% filter(year<2023),
+Figure3<-ggplot((results_old$forecasts%>%mutate(model_name="Current_OPI") %>% bind_rows(results_best ) %>% mutate(Model=sub("_"," ",model_name)) %>%  mutate(pct_error=log10(((predicted_abundance-abundance)/abundance)+1))) %>% filter(year<yr_end),
                   aes(x=year,y=pct_error,color=Model))+geom_hline(yintercept=0)+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))+xlab("")+ylab(expression(paste(log[10], "(% error +1)")))
 
 
