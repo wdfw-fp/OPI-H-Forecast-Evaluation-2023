@@ -1,6 +1,6 @@
 
 
-rolling_perf<-function(one_aheads,series,roll_years=15,mod_include=5){
+rolling_perf<-function(one_aheads,series,roll_years=15,mod_include=5,yr_end){
   
 out<-one_aheads  %>%left_join(series %>% dplyr::select(year,abundance)) %>% 
   mutate(error=abundance-predicted_abundance,
@@ -15,7 +15,7 @@ out<-one_aheads  %>%left_join(series %>% dplyr::select(year,abundance)) %>%
 
  #top performing models in each window
 tops<-out%>% 
- filter(between(year,2023-TY_ensemble+1,2023),
+ filter(between(year,yr_end-TY_ensemble+1,yr_end),
         rank<=mod_include) %>%
   left_join(model_list) %>% 
   # dplyr::select(year,MAPE,rank,model,model_name) %>% 

@@ -580,7 +580,7 @@ save(results,file="results/forecasts.rds")
 
 #calculate rolling performance
 ## rolling_year_window<-15
-rp<-rolling_perf(results,dat,rolling_year_window,3)
+rp<-rolling_perf(results,dat,rolling_year_window,3,yr_end=yr_end)
 # rp$performance
 
 # num_models<-10
