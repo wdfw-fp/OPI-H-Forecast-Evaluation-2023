@@ -66,67 +66,67 @@ sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
 <!-- Here we will load & install packages we need to use (needs internet connection if packages not already installed) -->
 
 ```{r load_packages, message = FALSE, warning = FALSE,results = "hide"}
-# packages_list<-c("tidyverse"
-#                  ,"forecast"
-#                  ,"mgcv"
-#                  ,"ggplot2"
-#                  ,"MASS"
-#                  ,"RColorBrewer"
-#                  ,"kableExtra"
-#                  ,"modelr"
-#                  ,"kableExtra"
-#                  ,"reshape2"
-#                  ,"ggfortify"
-#                  ,"clock"
-#                  ,"smooth"
-#                  ,"scales"
-#                  ,"gtools"
-#                  ,"CombMSC"
-#                  ,"here"
-#                  ,"MuMIn"
-#                  ,"janitor"
-#                  ,"rvest"
-#                  ,"lubridate"
-#                  ,"rnoaa"
-#                  ,"ncdf4"
-#                  ,"magrittr"
-#                  ,"ggcorrplot"
-#                  ,"parallel"
-#                  ,"foreach"
-#                  ,"doParallel"
-#                  ,"readxl"
-#                  )
-# install_or_load_pack(pack = packages_list)
+packages_list<-c("tidyverse"
+                 ,"forecast"
+                 ,"mgcv"
+                 ,"ggplot2"
+                 ,"MASS"
+                 ,"RColorBrewer"
+                 ,"kableExtra"
+                 ,"modelr"
+                 ,"kableExtra"
+                 ,"reshape2"
+                 ,"ggfortify"
+                 ,"clock"
+                 ,"smooth"
+                 ,"scales"
+                 ,"gtools"
+                 ,"CombMSC"
+                 ,"here"
+                 ,"MuMIn"
+                 ,"janitor"
+                 ,"rvest"
+                 ,"lubridate"
+                 ,"rnoaa"
+                 ,"ncdf4"
+                 ,"magrittr"
+                 ,"ggcorrplot"
+                 ,"parallel"
+                 ,"foreach"
+                 ,"doParallel"
+                 ,"readxl"
+                 )
+install_or_load_pack(pack = packages_list)
 
-pacman::p_load(tidyverse
-                 ,forecast
-                 ,mgcv
-                 ,ggplot2
-                 ,MASS
-                 ,RColorBrewer
-                 ,kableExtra
-                 ,modelr
-                 ,kableExtra
-                 ,reshape2
-                 ,ggfortify
-                 ,clock
-                 ,smooth
-                 ,scales
-                 ,gtools
-                 ,CombMSC
-                 ,here
-                 ,MuMIn
-                 ,janitor
-                 ,rvest
-                 ,lubridate
-                 ,rnoaa
-                 ,ncdf4
-                 ,magrittr
-                 ,ggcorrplot
-                 ,parallel
-                 ,foreach
-                 ,doParallel
-                 ,readxl)
+# pacman::p_load(tidyverse
+#                  ,forecast
+#                  ,mgcv
+#                  ,ggplot2
+#                  ,MASS
+#                  ,RColorBrewer
+#                  ,kableExtra
+#                  ,modelr
+#                  ,kableExtra
+#                  ,reshape2
+#                  ,ggfortify
+#                  ,clock
+#                  ,smooth
+#                  ,scales
+#                  ,gtools
+#                  ,CombMSC
+#                  ,here
+#                  ,MuMIn
+#                  ,janitor
+#                  ,rvest
+#                  ,lubridate
+#                  ,rnoaa
+#                  ,ncdf4
+#                  ,magrittr
+#                  ,ggcorrplot
+#                  ,parallel
+#                  ,foreach
+#                  ,doParallel
+#                  ,readxl)
 
 ```
 
@@ -463,10 +463,10 @@ dat<-OPIHData%>%
     )
   )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
  write.csv(dat,here::here("data/dat.csv"))
-}
+ return(read_csv(here::here(file_path)))
+ }#closes Else
   
-  
-}
+}#closes makedat function
 
 dat<-make_dat("data/dat.csv")
 
