@@ -94,6 +94,7 @@ packages_list<-c("tidyverse"
                  ,"parallel"
                  ,"foreach"
                  ,"doParallel"
+                 ,"readxl"
                  )
 install_or_load_pack(pack = packages_list)
 ```
@@ -115,7 +116,7 @@ species="Coho"
 # Summarization for analysis
 #===========================
 date_start_analysis<-ymd("1967/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2023/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+date_end_analysis<-ymd("2024/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-1 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 last_data<-Sys.Date()
@@ -207,14 +208,20 @@ available in the appendix.
 
 ```{r get_data, message=FALSE, warning=FALSE, results="show"}
 
-make_dat<-function(file_path=NULL){
+make_dat<-function(file_path){
 
-  
-if(!is.null(file_path)){
-  return(read_csv(file_path))
+if(file.exists(file_path)){
+  return(read_csv(here::here(file_path)))
   
 }else{
-OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+#OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+
+if(max(OPIHData$Year)<year(Sys.Date())){
+  maxyear=max(OPIHData$Year)+1
+  OPIHData%<>%
+    right_join(tibble(Year=c(unique(OPIHData$Year),year(Sys.Date()))))
+}
 
 nYears <- length(OPIHData[,1])
 earliestYear <- OPIHData[1,1]
@@ -245,11 +252,12 @@ OPIHData%<>%
   as_tibble()%>%
   arrange(year)
 
-Yrlist<-data.frame(year=c(min(OPIHData$year):(max(OPIHData$year)+1)))
+Yrlist<-data.frame(year=c(min(OPIHData$year):(maxyear)))
 
 OPIHData%<>%
   right_join(Yrlist)%>%
   arrange(year)
+
 #=========================================================
 #get PDO data
 #=========================================================
@@ -264,8 +272,8 @@ PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=
   group_by(Year)%>%
   dplyr::rename(year=Year)%>%
   dplyr::summarise(PDO=mean(PDO))%>%
-  mutate(lag1_PDO = lag(PDO,1))%>%
   right_join(Yrlist)%>%
+  mutate(lag1_PDO = lag(PDO,1))%>%
   dplyr::select(year,lag1_PDO)%>%
   filter(!is.na(lag1_PDO))
 #=========================================================
@@ -290,8 +298,17 @@ NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment=
 #=========================================================
 #get NOAA indicator data, wrangle into usable format, plot
 #=========================================================
-indicators<-read_csv("https://www.fisheries.noaa.gov/s3//2022-12/OEI-spotlight-cvs-2022-NWFSC.csv",skip=1)%>%
+if(!file.exists(here::here("data/2023stoplight.xlsx"))){
+  url<-"https://www.fisheries.noaa.gov/s3/2024-01/2023-Stoplight-RAWDATA-FINAL-USE-THIS-ONE.xlsx"
+  download.file(url, destfile = here::here("data/2023stoplight.xlsx"), method = "auto", mode = "wb")
+  indicators<-readxl::read_xlsx(here::here("data/2023stoplight.xlsx"))
+}else{
+  indicators<-readxl::read_xlsx(here::here("data/2023stoplight.xlsx"))
+}
+
+indicators<-indicators%>%
   filter(!is.na(`Ecosystem Indicators`))%>%
+  mutate(across(c(starts_with("1"),starts_with("2")),~as.numeric(.)))%>%
   pivot_longer(names_to = "Year",
                 cols=c(starts_with("1"),starts_with("2")),
                 values_to = "value")%>%
@@ -322,13 +339,35 @@ enso<-read_table("https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.ano
 #===========================================================================================================
 #Get ERSST data: get_ersst_v5_data takes A LONG TIME (1 hr) vs. get_ersst_v5_data_V2 which is much quicker!
 #==========================================================================================================
-sstdat<-get_ersst_v5_data_V2(years=c(min(Yrlist$year):max(Yrlist$year)),
-                             data.dir="https://stateofwa.sharepoint.com/:u:/r/sites/DFW-TeamWDFWOPIModelReview/Shared%20Documents/General/sst.mnmean.nc?csf=1&web=1&e=mhx1bc",
-                               #"C:\\Users\\sorelmhs\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
-                             ncfilename="sst.mnmean.nc",
-                             latrange=c(44,50),
-                             lonrange=c(-125,-120)
-                             )
+# sstdat<-get_ersst_v5_data_V2(years=c(min(Yrlist$year):max(Yrlist$year)),
+#                              data.dir="https://stateofwa.sharepoint.com/:u:/r/sites/DFW-TeamWDFWOPIModelReview/Shared%20Documents/General/sst.mnmean.nc?csf=1&web=1&e=mhx1bc",
+#                                #"C:\\Users\\sorelmhs\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
+#                              ncfilename="sst.mnmean.nc",
+#                              latrange=c(44,50),
+#                              lonrange=c(-125,-120)
+#                              )
+
+sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
+                           data.dir=here::here("data"),
+                           ncfilename="sst.mnmean_1_23_2024.nc",
+                           latrange=c(44,50),
+                           lonrange=c(-125,-120)
+)%>%
+  filter(!is.na(sst))%>%
+  group_by(year,month)%>%
+  summarize(meanSST=mean(sst,na.rm=T))%>%
+  mutate(year=as.numeric(year),
+         month=as.numeric(month)
+         )%>%
+  bind_rows(read_csv(here::here("data/January_ERSST_v5.csv"))%>%
+              dplyr::select(year,month,meanSST=SST)
+            
+            )%>%
+  group_by(month)%>%
+  mutate(gmeanSST=mean(meanSST,na.rm=T))%>%
+  ungroup()%>%
+  mutate(resid=meanSST-gmeanSST)
+
 
 ssta<-sstdat%>%
   dplyr::select(year,month,resid)%>%
@@ -358,7 +397,7 @@ ssta<-sstdat%>%
 #   geom_hline(yintercept=0,linetype="dashed")+
 #   scale_color_brewer(palette = "Spectral")+
 #   geom_line()+
-#   facet_wrap(~factor(year))
+#  facet_wrap(~factor(year))
 #==========================================
 #Get OCN covariates
 #==========================================
@@ -368,7 +407,7 @@ OCN<-read_csv("data/OCNR_Forecast_Summary.csv")%>%
   dplyr::select(-c("ADULTS","SPAWNERS","Spawners"))
 #================================================================
 dat<-OPIHData%>%
-  left_join(Yrlist)%>%
+  right_join(Yrlist)%>%
   left_join(PDO)%>%
   left_join(NPGO)%>%
   left_join(indicators)%>%
@@ -382,7 +421,7 @@ dat<-OPIHData%>%
          period = 1,
          lag1_log_JackOPI = log(lag1_JackOPI),
          lag1_log_SmAdj = log(lagJackCR) * (lagSmD/lagSmCR),
-         lag1_sp_phys_trans = lag(`Physical Spring Trans.\nUI based (day of year)`)
+         lag1_sp_phys_trans = lag( "Physical Spring Trans.\r\nUI based (day of year)")
          )%>%
   ungroup()%>%
   dplyr::select(year,species,period,abundance,all_of(unique(unlist(covariates))))%>%
@@ -392,6 +431,7 @@ dat<-OPIHData%>%
       .fns = ~ !is.na(.x)
     )
   )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
+ write.csv(dat,here::here("data/dat.csv"))
 }
   
   
