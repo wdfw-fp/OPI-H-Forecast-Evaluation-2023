@@ -765,7 +765,7 @@ Appendix 1 shows the raw data and covariates used in modeling.
 dat%>%
   dplyr::select(-period)%>%
   kbl(caption ="Appendix 1. data used for forecasting OPI Coho",digits =2)%>%
-  kable_classic(full_width = F, html_font = "Cambria")
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria")
 ```
 
 OPI data and covariate notes: 1) Jack OPI = Total Jack CR and Jack OC.
