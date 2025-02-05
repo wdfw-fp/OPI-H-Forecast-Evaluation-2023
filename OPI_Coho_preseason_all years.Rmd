@@ -1,5 +1,5 @@
 ---
-title: "OPI Forecasts 2024"
+title: "OPI Forecasts 2025"
 author: Thomas Buehrens, WDFW (tbuehrens@dfw.wa.gov), Mark Sorel, WDFW (mark.sorel@dfw.wa.gov), Cassandra Leeman, ODFW (cassandra.r.leeman@odfw.oregon.gov), and Shannon Conley, WDFW (shannon.conley@dfw.wa.gov)
 output:
   html_document:
@@ -147,7 +147,7 @@ species="Coho"
 # Summarization for analysis
 #===========================
 date_start_analysis<-ymd("1967/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2024/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+date_end_analysis<-ymd("2025/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-1 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 last_data<-Sys.Date()
@@ -157,33 +157,33 @@ last_data<-Sys.Date()
 leave_yrs<- 31
 TY_ensemble<-16
 k<-1
-covariates<-c(#new
-              "lag1_log_JackOPI"
-              ,"lag1_log_SmAdj"
-              ,"lag1_NPGO"
-              ,"lag1_PDO"
-              ,"WSST_A"
-              
-              #OCN
-              ,"PDO.MJJ"
-              ,"MEI.OND"
-              ,"UWI.JAS"
-              ,"SST.AMJ"
-              ,"SSH.AMJ"
-              ,"UWI.SON"
-              
-              #Very correlated with variables already included
-              #,"lag1_fall_Nino3.4"
-              #,"SST.J"
-              
-              #Original OPIT indicators very correlated with variables already used(but untransformed)
-              #"lag1_JackOPI"
-              #,"lag1_SmAdj"
-              
-              #NOAA Ocean Indicators
-              #,"lag1_sp_phys_trans"
-              #,"lag1_PC1"
-              ) 
+                                                                                            covariates<-c(#new
+                                                                                                          "lag1_log_JackOPI"
+                                                                                                          ,"lag1_log_SmAdj"
+                                                                                                          ,"lag1_NPGO"
+                                                                                                          ,"lag1_PDO"
+                                                                                                          ,"WSST_A"
+                                                                                                          
+                                                                                                          #OCN
+                                                                                                          ,"PDO.MJJ"
+                                                                                                          ,"MEI.OND"
+                                                                                                          ,"UWI.JAS"
+                                                                                                          ,"SST.AMJ"
+                                                                                                          ,"SSH.AMJ"
+                                                                                                          ,"UWI.SON"
+                                                                                                          
+                                                                                                          #Very correlated with variables already included
+                                                                                                          #,"lag1_fall_Nino3.4"
+                                                                                                          #,"SST.J"
+                                                                                                          
+                                                                                                          #Original OPIT indicators very correlated with variables already used(but untransformed)
+                                                                                                          #"lag1_JackOPI"
+                                                                                                          #,"lag1_SmAdj"
+                                                                                                          
+                                                                                                          #NOAA Ocean Indicators
+                                                                                                          #,"lag1_sp_phys_trans"
+                                                                                                          #,"lag1_PC1"
+                                                                                                          ) 
 plot_results = F
 first_forecast_period = 1
 write_model_summaries = TRUE
@@ -310,7 +310,11 @@ PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=
 #=========================================================
 #get NPGO data
 #=========================================================
-NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment="#")%>%
+
+read_table("https://www.o3d.org/npgo/data/NPGO.txt")
+
+
+NPGO<-read_table("https://www.o3d.org/npgo/data/NPGO.txt",skip=29,col_names=F,comment="#")%>%
   filter(!is.na(X2))%>%
   dplyr::rename(Year=X1,Month=X2,NPGO=X3)%>%
   mutate(Year=as.integer(as.numeric(Year)))%>%
@@ -320,9 +324,10 @@ NPGO<-read_table("http://www.o3d.org/npgo/npgo.php",skip=29,col_names=F,comment=
   #filter(!n < 12)%>% #use only complete years
   group_by(Year)%>%
   dplyr::summarise(NPGO=mean(NPGO))%>%
-  dplyr::rename(year=Year)%>%
-  mutate(lag1_NPGO = lag(NPGO))%>%
+  dplyr::rename(year=Year)%>% 
   right_join(Yrlist)%>%
+  mutate(lag1_NPGO = lag(NPGO))%>%
+
   arrange(year)%>%
   dplyr::select(year,lag1_NPGO)%>%
   filter(!is.na(lag1_NPGO))
@@ -380,20 +385,20 @@ enso<-read_table("https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.ano
 
 sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
                            data.dir=here::here("data"),
-                           ncfilename="sst.mnmean_1_23_2024.nc",
+                           ncfilename="sst.mnmean_1_23_2025_1.nc",
                            latrange=c(44,50),
                            lonrange=c(-125,-120)
 )%>%
   filter(!is.na(sst))%>%
   group_by(year,month)%>%
-  summarize(meanSST=mean(sst,na.rm=T))%>%
+  summarize(meanSST=mean(sst,na.rm=T),n=n())%>%
   mutate(year=as.numeric(year),
          month=as.numeric(month)
          )%>%
-  bind_rows(read_csv(here::here("data/January_ERSST_v5.csv"))%>%
-              dplyr::select(year,month,meanSST=SST)
-            
-            )%>%
+  # bind_rows(read_csv(here::here("data/January_ERSST_v5_2025.csv"))%>%
+  #             dplyr::select(year,month,meanSST=SST)
+  #           
+  #           )%>%
   group_by(month)%>%
   mutate(gmeanSST=mean(meanSST,na.rm=T))%>%
   ungroup()%>%
@@ -471,13 +476,13 @@ dat<-OPIHData%>%
 dat<-make_dat("data/dat.csv")
 
 dat%>%
-  dplyr::select(-c(year,species,period,abundance))%>%
+  dplyr::select(-c(year,species,period,abundance,`...1`))%>%
   cor()%>%
   ggcorrplot(hc.order = TRUE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05)
 
 dat%>%
-  dplyr::select(-c(year,species,period,abundance))%>%
-  cor()%>%
+  dplyr::select(-c(year,species,period,abundance,`...1`)) %>%
+  cor() %>%
   round(.,2)
 
 
@@ -528,12 +533,19 @@ OPIHData%<>%
   }
 ```
 
+
+
 ## Analysis and summarization
 
 This section shows the code used to analyze the data and summarize the
 results
 
-```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide",cache=TRUE}
+```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide"}
+
+# test_pack<-SalmonForecasting::do_forecast(dat,max_vars = max_vars,n_cores =8,ts_freq=2,seasonal = TRUE)
+# 
+# test_pack$plots_and_tables$Table2
+
 if(find_best ==T){
   best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
   saveRDS(best_covariates,"best_covariates_OPI_preseason.rds")
@@ -541,9 +553,9 @@ if(find_best ==T){
 
 best_covariates<-readRDS("best_covariates_OPI_preseason.rds")
 
-# Table1<-best_covariates[[2]]%>%
+# Table1 <- best_covariates[[2]]%>%
   # dplyr::slice(1:num_models)%>%
-  # kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3)%>%
+  # kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3) %>%
   # kable_classic(full_width = F, html_font = "Cambria")
 
 
@@ -555,7 +567,7 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
   dplyr::rename(model=rowname,model_name=value)
 
 
-if(!file.exists("results/forecasts.rds")|redo_forecasts==TRUE){
+if(!file.exists("results/forecasts3.rds")|redo_forecasts==TRUE){
   results<-one_step_ahead(series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
@@ -570,21 +582,30 @@ if(!file.exists("results/forecasts.rds")|redo_forecasts==TRUE){
                   k=k
                   )
 
-save(results,file="results/forecasts.rds")
+save(results3,file="results3/forecasts.rds")
 }else{
-  load("results/forecasts.rds")
+  load("results/forecasts3.rds")
 }
 
-
-
+# contains_string <- function(lst, target) {
+#   sapply(lst, function(vec) target %in% vec)
+# }
+# 
+# target_string <- "lag1_PDO"
+# 
+# includesPDO<-contains_string(best_covariates[[1]], target_string)
+# 
+# results3_no_PDO <-results3[results3$model %in% as.character(which(!includesPDO)),]
 
 #calculate rolling performance
 ## rolling_year_window<-15
-rp<-rolling_perf(results,dat,rolling_year_window,3)
+rp<-SalmonForecasting::rolling_perf(results3,dat,rolling_year_window,num_models,TY_ensemble,model_list)
 # rp$performance
 
+
+
 # num_models<-10
-ens<-ensemble(rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,dat,TY_ensemble,k,slide=15)
+ens<-SalmonForecasting::ensemble(rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,dat,TY_ensemble,k,slide=15,num_models,stack_metric,stretch=FALSE,do_stacking = FALSE)
 # ens$forecast_skill %>%filter(grepl("weight",model))
 
 
@@ -604,9 +625,56 @@ ens$forecast_skill %>%filter(grepl("weight",model))
 #   arrange(get(stack_metric))%>%
 #   dplyr::select(!model)
 
+
+
+top_mods<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
+                  leave_yrs=1,
+                  TY_ensemble=1,
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]][rp$top_mods |> filter(year==2025) |> pull(model) |> as.numeric()],
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  stack_metric = stack_metric,
+                  k=k,
+                  include_mod = TRUE
+                  )
+
+top_mod_coefs<-bind_rows(lapply(top_mods$mod,\(x)x[[1]]))
+
+top_mod_ave_coef<-top_mod_coefs |> mutate(across(everything(),\(x)replace_na(x,0))) |>colMeans() |> tibble::enframe()
+
+top_mods_24<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
+                  leave_yrs=1,
+                  TY_ensemble=1,
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]][rp$top_mods |> filter(year==2024) |> pull(model) |> as.numeric()],
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  stack_metric = stack_metric,
+                  k=k,
+                  include_mod = TRUE
+                  )
+
+top_mod_coefs_24<-bind_rows(lapply(top_mods_24$mod,\(x)x[[1]]))
+
+top_mod_ave_coef_24<-top_mod_coefs_24 |> mutate(across(everything(),\(x)replace_na(x,0))) |>colMeans() |> tibble::enframe()
+
 ```
 
-```{r results_stuff, message=FALSE, warning=FALSE, results="hide",cache=TRUE}
+
+
+
+
+
+
+
+```{r results_stuff, message=FALSE, warning=FALSE, results="hide"}
 
 Table2<-for_skill%>% mutate(model=sub("_"," ",model))%>% rename(Model=model)%>% 
   kbl(caption = paste0("Table 2. One step ahead individual and ensemble model performance"),digits =2)%>%
@@ -631,10 +699,11 @@ Table3<-
 
 
   
-best_model<-for_skill$model[1]
+best_model<-"MAPE_weighted"#for_skill$model[1]
 
 
-  results_best<-rp$top_mods %>% filter(rank==1) %>% mutate(model="Best_individual") %>% bind_rows(
+  results_best<-rp$top_mods %>% filter(model==best_model) %>% #mutate(model="MAPE_weighted") %>% 
+  bind_rows(
   ens$ensembles %>% left_join(dat %>% dplyr::select(year,abundance)) %>% mutate(model_name=model)
 ) %>% filter(model==best_model) %>% 
   dplyr::select(year,model_name,abundance,
@@ -656,8 +725,8 @@ Table4<-results_best%>%
 
 
 Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
-  geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
-  geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
+ggplot2::geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
+  ggplot2::geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_line()+
   geom_point(aes(x=year,y=abundance))+
   ylim(0,NA)+
@@ -692,6 +761,10 @@ Figure3<-ggplot((results_old$forecasts%>%mutate(model_name="Current_OPI") %>% bi
 
 ```
 
+
+
+
+
 ## Results
 
 <!-- Table 1 shows the model selection results sorted by AIC based on in-sample fits of ARIMA models tested on all subsets of covariates to the full (all years) data set. The ARIMA model structure for each covariate set was selected by the auto.arima function in the forecast package. These model selection results are generated as a first step to identify the top models for further use in evaluating out-of-sample one-step-ahead forecast skill, and constructing ensembles. -->
@@ -719,7 +792,7 @@ $${w}_{i} = \frac {{s}_{i}^{-1}} {\sum_{i=1}^{K} {s}_{i}^{-1}} $$
 Table2
 ```
 
-Table 3 shows predictions of total runsize for the individual model that
+Table 3 shows predictions of total run size for the individual model that
 would have been selected in each year, as well as which model would have
 been selected.
 
@@ -728,7 +801,7 @@ Table3
 ```
 
 Table 4 and Figure 1 shows annual one-step-ahead predictions of
-abundance for the best model, including 50 and 95% prediction intervals
+abundance for the best individual model, including 50 and 95% prediction intervals
 relative to the observed abundance (black dots in Figure 1).
 
 ```{r message=FALSE, warning=FALSE, results="show"}
@@ -741,7 +814,7 @@ Figure1
 
 Figure 2 shows the annual one-step-ahead predictions of abundance
 (lines) for the entire model set and the observed abundance (black
-dots), the best model forecast (thick black line), and the existing OPI
+dots), the MAPE averaged forecast (thick black line), and the existing OPI
 forecast (thick grey line).
 
 ```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 2. One-step-ahead predictions (lines) of total OPI coho abundance for the top model set relative to observed abundance (black dots)."}
@@ -756,6 +829,60 @@ Figure3
 
 
 
+Figure 4 shows the average effect of each of the predictors on the forecast. There is also an intercept, which averaged `r round(top_mod_ave_coef |> filter(name=="intercept") |> pull(value),2)` and each of the top models had a lag 1 moving average (MA1) coefficient (average = `r round(top_mod_ave_coef |> filter(name=="ma1") |> pull(value),2)`), such that when  a positive forecast error (actual value > predicted) lead to a decrease in the next forecast.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 4. Effects of covariates on 2025 forecast."}
+
+
+top_mod_ave_coef |> filter(!name%in%c("intercept","ma1","ar1","sar1")) |>
+  left_join(
+   dat |> mutate(across(all_of(covariates),\(x)c(scale(x))))|> filter(year==2025) |> dplyr::select(all_of(covariates) ) |> c() |> unlist() |> enframe() |> rename("coef"="value")
+    
+    
+  ) |> mutate(loading=value*coef) |> 
+  
+  
+  ggplot2::ggplot(aes(x=name,y=loading))+ggplot2::geom_col() +ggplot2::theme(axis.text.x = element_text(angle = 45, vjust = .9, hjust=1))+ylab("Average effect of predictor on forecast")
+
+```
+
+Figure 5 shows the average effect of each of the predictors on the 2024 forecast. There is also an intercept, which averaged `r round(top_mod_ave_coef |> filter(name=="intercept") |> pull(value),2)` and each of the top models had a lag 1 moving average (MA1) coefficient (average = `r round(top_mod_ave_coef |> filter(name=="ma1") |> pull(value),2)`), such that when  a positive forecast error (actual value > predicted) lead to a decrease in the next forecast.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 5. Effects of covariates on 2024 forecast."}
+
+
+top_mod_ave_coef_24 |> filter(!name%in%c("intercept","ma1","ar1","sar1")) |>
+  left_join(
+    dat |> mutate(across(all_of(covariates),\(x)c(scale(x))))|> filter(year==2024) |> dplyr::select(all_of(covariates) ) |> c() |> unlist() |> enframe() |> rename("coef"="value")
+    
+    
+  ) |> mutate(loading=value*coef) |> 
+  
+  
+  ggplot2::ggplot(aes(x=name,y=loading))+ggplot2::geom_col() +ggplot2::theme(axis.text.x = element_text(angle = 45, vjust = .9, hjust=1))+ylab("Average effect of predictor on forecast")
+
+```
+
+
+Figure 6 shows time series of the z-scored covariate values.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 6. Standardized covariate values by year of forecast for most recent 10 years."}
+
+integer_breaks <- function(n = 5, ...) {
+  fxn <- function(x) {
+    breaks <- floor(pretty(x, n, ...))
+    names(breaks) <- attr(breaks, "labels")
+    breaks
+  }
+  return(fxn)
+}
+
+
+dat %>% dplyr::select(all_of(covariates),year) %>% mutate(across(all_of(covariates),function(x)c(scale(x))),year=as.integer(year)) %>% pivot_longer(all_of(covariates),values_to = "Z-scored value") %>% filter(between(year,2000,2025)) %>% ggplot(aes(x=year,y=`Z-scored value`))+geom_point()+geom_line() + facet_wrap(~name)+geom_hline(yintercept = 0,lty=2)+scale_x_continuous(breaks=integer_breaks(),guide = guide_axis(check.overlap = TRUE))
+
+```
+
+
 
 ## Appendix
 
@@ -763,10 +890,12 @@ Appendix 1 shows the raw data and covariates used in modeling.
 
 ```{r message=FALSE, warning=FALSE, results="show"}
 dat%>%
-  dplyr::select(-period)%>%
+  dplyr::select(-period,-`...1`)%>%
   kbl(caption ="Appendix 1. data used for forecasting OPI Coho",digits =2)%>%
   kableExtra::kable_classic(full_width = F, html_font = "Cambria")
 ```
+
+
 
 OPI data and covariate notes: 1) Jack OPI = Total Jack CR and Jack OC.
 2) Jack CR = Columbia River jack returns corrected for small adults. 3)

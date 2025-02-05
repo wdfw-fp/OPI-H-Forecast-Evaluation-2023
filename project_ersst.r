@@ -6,7 +6,7 @@ source(here::here("functions/getbuoydata.r"))
 
 
 
-years<-c(2010:2024)
+years<-c(2010:2025)
 buoylist<-c("46050","46041","46211","46087","46206")
 
 if(!file.exists(here::here("data/buoy_data.csv"))){
@@ -75,9 +75,9 @@ marss_dat<-marss_dat%>%
   summarise(meanSST=mean(value))
 
 
-SST1<-get_ersst_v5_new(years=c(2010,2024),
+SST1<-get_ersst_v5_new(years=c(2010,2025),
                            data.dir=here::here("data"),
-                           ncfilename="sst.mnmean_1_23_2024.nc",
+                           ncfilename="sst.mnmean_1_23_2025.nc",
                            latrange=c(44,50),
                            lonrange=c(-125,-120)
 )%>%
@@ -91,7 +91,7 @@ SST1<-get_ersst_v5_new(years=c(2010,2024),
 
 marss_dat2<-marss_dat%>%
   bind_rows(SST1)%>%
-  filter(year < 2024 | month <2)%>%
+  filter(year < 2025 | month <2)%>%
   pivot_wider(names_from = buoyid,values_from = meanSST,id_cols=c("year","month"))
 
   
@@ -138,7 +138,7 @@ ggplot(results%>%
             
 write.csv(results%>%
             filter(year==year(Sys.Date())),
-          here::here("data/January_ERSST_v5.csv"),row.names = F
+          here::here("data/January_ERSST_v5_2025.csv"),row.names = F
           )
 
          

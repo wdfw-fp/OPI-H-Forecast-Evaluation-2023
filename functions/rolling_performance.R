@@ -15,7 +15,7 @@ out<-one_aheads  %>%left_join(series %>% dplyr::select(year,abundance)) %>%
 
  #top performing models in each window
 tops<-out%>% 
- filter(between(year,2023-TY_ensemble+1,2023),
+ filter(between(year,2024-TY_ensemble+1,2024),
         rank<=mod_include) %>%
   left_join(model_list) %>% 
   # dplyr::select(year,MAPE,rank,model,model_name) %>% 

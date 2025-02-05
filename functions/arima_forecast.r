@@ -8,17 +8,17 @@ arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr,first_forecast_period
           dplyr::select(abundance)%>%
           unlist()%>%
           ts(frequency = 2)%>%
-          auto.arima(lambda=0,seasonal = T, xreg = xreg)
+          auto.arima(lambda=0,seasonal = TRUE, xreg = xreg)
         
         pred<-c(m1$fitted,forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2,
                                              xreg = xreg_pred
         )$mean)
-        CI<-forecast::forecast(m1,lambda=0,h=(1/first_forecast_period)*2, level = c(50, 95),
+        CI<-forecast::forecast(m1,lambda=0, level = c(50, 95),h=(1/first_forecast_period)*2,
                                xreg = xreg_pred
         )%>%
           as_tibble()%>%
           dplyr::select(!`Point Forecast`)%>%
-          mutate(year = last_train_yr+1, period = ifelse(first_forecast_period == 2,2,c(1:2)))
+          mutate(year = last_train_yr+1, period = ifelse(first_forecast_period == 2,2,c(1)))
       }else{
         m1<-tdat%>%
           filter(train_test==0)%>%
@@ -26,7 +26,7 @@ arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr,first_forecast_period
           dplyr::select(abundance)%>%
           unlist()%>%
           ts(frequency = 2)%>%
-          auto.arima(lambda=0,seasonal = T, xreg = NULL)
+          auto.arima(lambda=0,seasonal = TRUE, xreg = NULL)
         
         pred<-c(m1$fitted,forecast::forecast(m1,lambda=0,h=1,
                                              xreg = NULL
@@ -37,9 +37,12 @@ arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr,first_forecast_period
           as_tibble()%>%
           dplyr::select(!`Point Forecast`)%>%
           mutate(year = last_train_yr+1, period = 1)
+        
+       
       }
       return(list(pred = pred, CI = CI, arma=paste(m1$arma,collapse = ""),
-                  aicc=m1$aicc))
+                  aicc=m1$aicc,eq=equatiomatic::extract_eq(m1,use_coefs=TRUE),
+                  mod=m1))
       if(write_model_summaries ==T){
         sink("summary.txt",append=T)
         print(summary(m1))
@@ -59,7 +62,9 @@ arima_forecast<-function(tdat,xreg,xreg_pred,last_train_yr,first_forecast_period
                       mutate(year = last_train_yr+1, period = 1)
                     ,
                     arma=paste(m1$arma,collapse = ""),
-                    aicc=m1$aicc)
+                    aicc=m1$aicc,
+                    eq=equatiomatic::extract_eq(m1,use_coefs=TRUE),
+                    mod=m1)
                )
       }
   )

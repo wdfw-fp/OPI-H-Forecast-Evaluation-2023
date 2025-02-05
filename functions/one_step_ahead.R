@@ -11,7 +11,8 @@ one_step_ahead<-function(series,
                             obs_period_2,
                             p1_covariates_only,
                             stack_metric,
-                            k
+                            k,
+                         include_mod=FALSE
                             ){
   
   start<-Sys.time()
@@ -74,11 +75,17 @@ one_step_ahead<-function(series,
                     bind_cols(data.frame(
                       predicted_abundance=pred,
                       arma=temp$arma,
-                      aicc=temp$aicc))%>%
-                    left_join(CI, by = c("year","period"))%>%
+                      aicc=temp$aicc))
+      
+      if(include_mod){
+        tdat<-tdat %>%bind_cols(tibble(
+          mod=list(mod=temp$mod),
+          eq=temp$eq))
+      }
+      
+      tdat<-tdat%>%left_join(CI, by = c("year","period"))%>%
                     # dplyr::rename(predicted_abundance = pred)%>%
         mutate(model=as.character(c))
-      
       if(c==1){forecasts = tdat
       }else{forecasts = forecasts %>% bind_rows(tdat)}
       

@@ -1,4 +1,44 @@
 #get NOAA SST Buoy Data
+
+
+
+# df<-data.frame(matrix(NA,ncol = 5))
+# colnames(df)<-c("buoyid","year","month","yday","meanSST")
+# for(i in 1:length(buoylist[1:4])){
+#   for ( j in 1:12){
+# 
+# 
+# 
+# # test<- data.table::fread("https://www.ndbc.noaa.gov/data/stdmet/Mar/4605032024.txt.gz",skip=1)
+# 
+# buoy_data <-
+#   data.table::fread(paste0("https://www.ndbc.noaa.gov/data/stdmet/",month.abb[j],"/",buoylist[i], ifelse(j==12,"",ifelse(j>9,letters[j-9],j)),ifelse(j!=12,"2024.txt.gz",".txt"))) |>
+#   dplyr::filter(`#YY`!="#yr") |>
+#   dplyr::select(year=`#YY`,month= MM, day=DD,SST=WTMP) %>%
+#   dplyr::mutate(
+#     buoyid = buoylist[i],
+#     year=as.numeric(year),
+#     day=as.numeric(day),
+#     month=as.numeric(month),
+#     date = date(paste(year,month,day,sep="-")),
+#     yday = yday(date),
+#     SST=as.numeric(SST)
+#   ) %>%
+#   group_by(buoyid, year, yday) %>%
+#   filter(SST<100) |> 
+#   summarise(meanSST = mean(SST, na.rm = TRUE))%>%
+#   ungroup()
+# 
+# df<-df%>%
+#   bind_rows(buoy_data)%>%
+#   group_by(buoyid,year,yday)%>%
+#   summarise(meanSST = mean(meanSST,na.rm=T))
+# }
+# }
+# 
+# write_csv(df |> mutate(meanSST=round(meanSST,5)),"2024_buoy_data.csv")
+
+
 getbuoydata<-function(buoylist,years){
   df<-data.frame(matrix(NA,ncol = 5))
   colnames(df)<-c("buoyid","year","month","yday","meanSST")
