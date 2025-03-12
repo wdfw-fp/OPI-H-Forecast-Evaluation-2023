@@ -198,7 +198,7 @@ forecast_type<-"preseason"
 stack_metric<-"MAPE"
 num_models<-10
 rolling_year_window<-15
-alpha<-0.25 # expoenential smoothing of APE calculations
+alpha<-0.25 # exponential smoothing of APE calculations
 
 inputs<-list(
   yr_start = yr_start,
@@ -223,7 +223,8 @@ inputs<-list(
   stack_metric = stack_metric,
   num_models = num_models,
   rolling_year_window=rolling_year_window,
-  redo_forecasts=redo_forecasts
+  redo_forecasts=redo_forecasts,
+  alpha=alpha
 )
 
 print(inputs)
@@ -324,13 +325,13 @@ NPGO<-read_table("https://www.o3d.org/npgo/data/NPGO.txt",skip=29,col_names=F,co
   #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
   #filter(!n < 12)%>% #use only complete years
   group_by(Year)%>%
-  dplyr::summarise(NPGO=mean(NPGO))%>%
+  dplyr::summarise(NPGO=mean(NPGO),n=n())%>%
   dplyr::rename(year=Year)%>% 
   right_join(Yrlist)%>%
-  mutate(lag1_NPGO = lag(NPGO))%>%
+  mutate(lag1_NPGO = lag(NPGO),lag_n=lag(n))%>%
 
   arrange(year)%>%
-  dplyr::select(year,lag1_NPGO)%>%
+  dplyr::select(year,lag1_NPGO,lag_n)%>%
   filter(!is.na(lag1_NPGO))
 #=========================================================
 #get NOAA indicator data, wrangle into usable format, plot
@@ -595,17 +596,37 @@ save(results3,file="results/forecasts3.rds")
 # limit_vars <- function(lst, num) {
 #   sapply(lst, function(vec) length(vec) <= num)
 # }
-# 
-# target_string <- "WSST_A"
-# 
+#
+# target_string <- "lag1_PDO"
+#
 # includesPDO<-contains_string(best_covariates[[1]], target_string)
-# 
+#
 # results3_no_PDO <-results3[results3$model %in% as.character(which(!includesPDO)),]
 # 
 # lessthan<-limit_vars(best_covariates[[1]], 3)
 # 
 # results3_2 <-results3[results3$model %in% as.character(which(lessthan)),]
+# nyr_check<-
+# SalmonForecasting::check_nyrs(
+#   One_ahead_out=results3_no_PDO,dat=dat,
+# num_models=num_models,TY_ensemble=TY_ensemble,
+#   model_list=model_list,
+#   alpha=0,model_to_plot="MAPE_weighted"
+# )
 
+# nyr_check$plot_perf
+# nyr_check$plot_pred
+
+# alpha_check<-
+# SalmonForecasting::check_alpha(
+#   One_ahead_out=results3_no_PDO,dat=dat,
+# num_models=num_models,TY_ensemble=TY_ensemble,
+#   model_list=model_list,
+#   roll_years=rolling_year_window,model_to_plot="MAPE_weighted"
+# )
+
+# alpha_check$plot_perf
+# alpha_check$plot_pred
 
 #calculate rolling performance
 ## rolling_year_window<-15
@@ -614,7 +635,6 @@ rp<-SalmonForecasting::rolling_perf(results3,dat,rolling_year_window,num_models,
 
 
 
-# num_models<-10
 ens<-SalmonForecasting::ensemble(forecasts=rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,
                                  series=dat,
                                  TY_ensemble=TY_ensemble,
@@ -636,13 +656,6 @@ ens$forecast_skill %>%filter(grepl("weight",model))
 ) %>% 
   bind_rows(results_old$forecast_skill %>% mutate(model="Current_OPI"))  %>%
   arrange(MAPE)
-
-# ens$forecast_skill%<>%
-#   # bind_rows(results_old$forecast_skill)%>%
-#   left_join(model_list)%>%
-#   mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
-#   arrange(get(stack_metric))%>%
-#   dplyr::select(!model)
 
 
 
@@ -702,11 +715,6 @@ Table2<-for_skill%>% mutate(model=sub("_"," ",model))%>% rename(Model=model)%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-# results$forecasts%<>%
-#   bind_rows(results_old$forecasts)%>%
-#   left_join(model_list)%>%
-#   mutate(model_name=ifelse(is.na(model_name),model,model_name))%>%
-#   dplyr::select(!model)
 
 
 Table3<-
