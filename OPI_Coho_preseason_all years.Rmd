@@ -98,8 +98,8 @@ packages_list<-c("tidyverse"
                  )
 install_or_load_pack(pack = packages_list)
 
- if(!require(SalmonForecasting)){
-   devtools::install_github("wdfw-fp/salmonforecast")
+ if(!require(SalmonForecasting)|(packageVersion("SalmonForecasting")!="0.1.0")){
+   devtools::install_github("wdfw-fp/salmonforecast@v0.1.0")
    }
 
 
