@@ -1,0 +1,960 @@
+---
+title: "OPI Forecasts 2026"
+author: Thomas Buehrens, WDFW (tbuehrens@dfw.wa.gov), Mark Sorel, WDFW (mark.sorel@dfw.wa.gov), Cassandra Leeman, ODFW (cassandra.r.leeman@odfw.oregon.gov), and Shannon Conley, WDFW (shannon.conley@dfw.wa.gov)
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{=html}
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"https://privatelands.wdfw.wa.gov/wdfwlogo_clrnotxt.png"\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
+```
+```{=html}
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"https://raw.githubusercontent.com/tbuehrens/Salmon_Inseason_Forecasts/test/data/ODFW_logo.png"\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
+```
+
+------------------------------------------------------------------------
+
+Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
+
+------------------------------------------------------------------------
+
+# Overview
+
+This report details the process of fitting Auto-Regressive Integrated
+Moving Average (ARIMA) models to forecast OPI Coho salmon runsize. The
+model functions are flexibly configured to allow the user to supply
+total runsize data and a series of covariates.
+
+```{r set_options, echo = TRUE, message = FALSE}
+options(width = 100)
+knitr::opts_chunk$set(message = FALSE)
+set.seed(123)
+```
+
+<!-- We also need a couple of helper functions which we will define -->
+
+```{r load_funcs, message = FALSE, warning = FALSE,results = "hide"}
+wd_functions<-"functions"
+sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
+```
+
+<!-- Here we will load & install packages we need to use (needs internet connection if packages not already installed) -->
+
+```{r load_packages, message = FALSE, warning = FALSE,results = "hide"}
+packages_list<-c("tidyverse"
+                 ,"forecast"
+                 ,"mgcv"
+                 ,"ggplot2"
+                 ,"MASS"
+                 ,"RColorBrewer"
+                 ,"kableExtra"
+                 ,"modelr"
+                 ,"kableExtra"
+                 ,"reshape2"
+                 ,"ggfortify"
+                 ,"clock"
+                 ,"smooth"
+                 ,"scales"
+                 ,"gtools"
+                 # ,"CombMSC"
+                 ,"here"
+                 ,"MuMIn"
+                 ,"janitor"
+                 ,"rvest"
+                 ,"lubridate"
+                 ,"rnoaa"
+                 ,"ncdf4"
+                 ,"magrittr"
+                 ,"ggcorrplot"
+                 ,"parallel"
+                 ,"foreach"
+                 ,"doParallel"
+                 ,"readxl"
+                 )
+install_or_load_pack(packages = packages_list)
+
+ if(!require(SalmonForecasting)|(packageVersion("SalmonForecasting")!="0.1.0")){
+   devtools::install_github("wdfw-fp/salmonforecast@v0.1.0")
+   }
+
+
+# pacman::p_load(tidyverse
+#                  ,forecast
+#                  ,mgcv
+#                  ,ggplot2
+#                  ,MASS
+#                  ,RColorBrewer
+#                  ,kableExtra
+#                  ,modelr
+#                  ,kableExtra
+#                  ,reshape2
+#                  ,ggfortify
+#                  ,clock
+#                  ,smooth
+#                  ,scales
+#                  ,gtools
+#                  ,CombMSC
+#                  ,here
+#                  ,MuMIn
+#                  ,janitor
+#                  ,rvest
+#                  ,lubridate
+#                  ,rnoaa
+#                  ,ncdf4
+#                  ,magrittr
+#                  ,ggcorrplot
+#                  ,parallel
+#                  ,foreach
+#                  ,doParallel
+#                  ,readxl)
+
+```
+
+## User Inputs
+
+This section contains parameters input to control the forecasting
+process
+
+```{r user_inputs_data, message = FALSE, warning = FALSE,results = "show"}
+#=========
+# Raw Data
+#=========
+yr_start<-1967
+yr_end<-year(Sys.Date())
+#dam="BON"
+species="Coho"
+#===========================
+# Summarization for analysis
+#===========================
+date_start_analysis<-ymd("1967/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
+date_end_analysis<-ymd("2025/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+forecast_period_start_m<-1 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
+last_data<-Sys.Date()
+#==================
+#forecasting params
+#==================
+leave_yrs<- 31
+TY_ensemble<-16
+k<-1
+                                                                                            covariates<-c(#new
+                                                                                                          "lag1_log_JackOPI"
+                                                                                                          ,"lag1_log_SmAdj"
+                                                                                                          ,"lag1_NPGO"
+                                                                                                          ,"lag1_PDO"
+                                                                                                          ,"WSST_A"
+                                                                                                          
+                                                                                                          #OCN
+                                                                                                          ,"PDO.MJJ"
+                                                                                                          ,"MEI.OND"
+                                                                                                          ,"UWI.JAS"
+                                                                                                          ,"SST.AMJ"
+                                                                                                          ,"SSH.AMJ"
+                                                                                                          ,"UWI.SON"
+                                                                                                          
+                                                                                                          #Very correlated with variables already included
+                                                                                                          #,"lag1_fall_Nino3.4"
+                                                                                                          #,"SST.J"
+                                                                                                          
+                                                                                                          #Original OPIT indicators very correlated with variables already used(but untransformed)
+                                                                                                          #"lag1_JackOPI"
+                                                                                                          #,"lag1_SmAdj"
+                                                                                                          
+                                                                                                          #NOAA Ocean Indicators
+                                                                                                          #,"lag1_sp_phys_trans"
+                                                                                                          #,"lag1_PC1"
+                                                                                                          ) 
+plot_results = F
+first_forecast_period = 1
+write_model_summaries = TRUE
+find_best=T
+redo_forecasts=FALSE #where to do one-year-ahead forecasts for all models and years if there is a file saved with some. Change to TRUE if changing the min or max number of variables allowed per model, the covariates, or adding a new year of data. TO-DO: add functionality to only make projections for years or models that don't exist and get rid of any that you don't want (e.g., if you reduce max number of covariates per model)
+#==============
+#Ensemble Params
+#===============
+min_vars<-0
+max_vars<-6
+forecast_type<-"preseason"
+stack_metric<-"MAPE"
+num_models<-10
+rolling_year_window<-15
+alpha<-0.25 # exponential smoothing of APE calculations
+
+inputs<-list(
+  yr_start = yr_start,
+  yr_end = yr_end,
+  species = species,
+  date_start_analysis = date_start_analysis,
+  date_end_analysis = date_end_analysis,
+  forecast_period_start_m = forecast_period_start_m,
+  forecast_period_start_d = forecast_period_start_d,
+  last_data = last_data,
+  leave_yrs = leave_yrs,
+  TY_ensemble = TY_ensemble,
+  k = k,
+  covariates = covariates,
+  plot_results = plot_results, 
+  first_forecast_period = first_forecast_period,
+  write_model_summaries = write_model_summaries, 
+  find_best = find_best,
+  min_vars = min_vars,
+  max_vars = max_vars,
+  forecast_type = forecast_type,
+  stack_metric = stack_metric,
+  num_models = num_models,
+  rolling_year_window=rolling_year_window,
+  redo_forecasts=redo_forecasts,
+  alpha=alpha
+)
+
+print(inputs)
+```
+
+## Get Raw Data
+
+Here we load the response variable (observed OPI coho abundance) and
+covariates used in past forecasts from Erik Suring's GitHub repository
+[**OPIH Evaluation**](https://github.com/ErikSuring/OPIH_Evaluation). We
+also load covariates used in the Oregon Coast Natural (OCN) coho
+forecast, as well as ancillary additional covariates. More details are
+available in the appendix.
+
+```{r get_data, message=FALSE, warning=FALSE, results="show"}
+
+make_dat<-function(file_path){
+
+if(file.exists(file_path)){
+  return(read_csv(here::here(file_path)))
+  
+}else{
+#OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+
+if(max(OPIHData$Year)<year(Sys.Date())){
+  maxyear=max(OPIHData$Year)+1
+  OPIHData%<>%
+    right_join(tibble(Year=c(unique(OPIHData$Year),year(Sys.Date()))))
+}
+
+nYears <- length(OPIHData[,1])
+earliestYear <- OPIHData[1,1]
+latestYear <- OPIHData[nYears,1]
+
+OPIHData$AdltAll <- c(OPIHData$AdltSRS[1:17],OPIHData$AdltMSM[18:nYears])   # row 18  <-  1986. Use SRS data prior, MSM data post
+OPIHData$AdltAllno83 <- OPIHData$AdltAll
+OPIHData$AdltAllno83[15] <-  NA   #  1983 is removed from model input data
+OPIHData[,"AdltAll"] <- OPIHData$AdltAll
+OPIHData[,"AdltAllno83"] <- OPIHData$AdltAllno83
+
+# Lag Jack and Smolt data to return year
+OPIHData[,"lagJackCR"] <- c(NA, OPIHData$JackCR[1:nYears-1])
+OPIHData[,"lagJackOC"] <- c(NA, OPIHData$JackOC[1:nYears-1])
+OPIHData[,"lagJackOPI"] <- OPIHData$lagJackCR + OPIHData$lagJackOC
+
+OPIHData[,"lagSmD"] <- c(NA, OPIHData$SmD[1:nYears-1])
+OPIHData[,"lagSmCR"] <- c(NA, OPIHData$SmCR[1:nYears-1])
+OPIHData[,"lagSmAdj"] <- OPIHData$lagJackCR*(OPIHData$lagSmD/OPIHData$lagSmCR)   #  Calculate Smolt Adjustment
+
+# Output OPIHData as a .csv file
+#write.table(OPIHData, file = "OPIHData.csv", sep = ", ", row.names=FALSE)
+
+OPIHData%<>%
+  dplyr::rename(year=Year,
+                abundance = AdltAllno83
+                )%>%
+  as_tibble()%>%
+  arrange(year)
+
+Yrlist<-data.frame(year=c(min(OPIHData$year):(maxyear)))
+
+OPIHData%<>%
+  right_join(Yrlist)%>%
+  arrange(year)
+
+#=========================================================
+#get PDO data
+#=========================================================
+PDO<-read_table("https://psl.noaa.gov/pdo/data/pdo.timeseries.ersstv5.csv",skip=1,col_names=F,comment="#")%>%
+  dplyr::rename(Date=X1,PDO=X2)%>%
+  filter(!PDO < -99)%>%
+  mutate(Date=as.Date(Date),Month=month(Date),Year=as.integer(year(Date)))%>%
+  group_by(Year)%>%
+  add_tally()%>%
+  #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
+  #filter(!n < 12)%>% #use only complete years
+  group_by(Year)%>%
+  dplyr::rename(year=Year)%>%
+  dplyr::summarise(PDO=mean(PDO))%>%
+  right_join(Yrlist)%>%
+  mutate(lag1_PDO = lag(PDO,1))%>%
+  dplyr::select(year,lag1_PDO)%>%
+  filter(!is.na(lag1_PDO))
+#=========================================================
+#get NPGO data
+#=========================================================
+
+
+
+NPGO<-read_table("https://www.o3d.org/npgo/data/NPGO.txt",skip=29,col_names=F,comment="#")%>%
+  filter(!is.na(X2))%>%
+  dplyr::rename(Year=X1,Month=X2,NPGO=X3)%>%
+  mutate(Year=as.integer(as.numeric(Year)))%>%
+  group_by(Year)%>%
+  add_tally()%>%
+  #filter(!Month>6)%>% #use only spring (Jan-June) NPGO
+  #filter(!n < 12)%>% #use only complete years
+  group_by(Year)%>%
+  dplyr::summarise(NPGO=mean(NPGO),n=n())%>%
+  dplyr::rename(year=Year)%>% 
+  right_join(Yrlist)%>%
+  mutate(lag1_NPGO = lag(NPGO),lag_n=lag(n))%>%
+
+  arrange(year)%>%
+  dplyr::select(year,lag1_NPGO,lag_n)%>%
+  filter(!is.na(lag1_NPGO))
+#=========================================================
+#get NOAA indicator data, wrangle into usable format, plot
+#=========================================================
+# if(!file.exists(here::here("data/2023stoplight.xlsx"))){
+#   url<-"https://www.fisheries.noaa.gov/s3/2024-01/2023-Stoplight-RAWDATA-FINAL-USE-THIS-ONE.xlsx"
+#   download.file(url, destfile = here::here("data/2023stoplight.xlsx"), method = "auto", mode = "wb")
+#   indicators<-readxl::read_xlsx(here::here("data/2023stoplight.xlsx"))
+# }else{
+#   indicators<-readxl::read_xlsx(here::here("data/2023stoplight.xlsx"))
+# }
+# 
+# indicators<-indicators%>%
+#   filter(!is.na(`Ecosystem Indicators`))%>%
+#   mutate(across(c(starts_with("1"),starts_with("2")),~as.numeric(.)))%>%
+#   pivot_longer(names_to = "Year",
+#                 cols=c(starts_with("1"),starts_with("2")),
+#                 values_to = "value")%>%
+#   pivot_wider(names_from=`Ecosystem Indicators`,values_from=value)%>%
+#   mutate(year=as.integer(Year))%>%
+#   dplyr::select(-Year)%>%
+#   right_join(Yrlist)%>%
+#   arrange(year)%>%
+#   mutate(lag1_PC1 = lag(scale(`Principal Component scores (PC1)`)[,1]))%>%
+#   filter(!is.na(lag1_PC1))
+#=========================================
+# Get ENSO index
+#=========================================
+# enso<-read_table("https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.anom.data",skip=1,col_names = F)%>%
+#   as_tibble()%>%
+#   setNames(c("year",1:12))%>%
+#   filter(year%in%as.character(yr_start:yr_end))%>%
+#   mutate(across(everything(),~as.numeric(.)))%>%
+#   pivot_longer(names_to = "month",values_to = "Nino3.4",cols=c(!year))%>%
+#   filter(Nino3.4>-10 & Nino3.4 <10)%>%
+#   filter(month%in%c(10:12))%>%
+#   group_by(year)%>%
+#   summarise(fall_Nino3.4=mean(Nino3.4))%>%
+#   right_join(Yrlist)%>%
+#   mutate(lag1_fall_Nino3.4=lag(fall_Nino3.4))%>%
+#   dplyr::select(-fall_Nino3.4)
+
+#===========================================================================================================
+#Get ERSST data: get_ersst_v5_data takes A LONG TIME (1 hr) vs. get_ersst_v5_data_V2 which is much quicker!
+#==========================================================================================================
+# sstdat<-get_ersst_v5_data_V2(years=c(min(Yrlist$year):max(Yrlist$year)),
+#                              data.dir="https://stateofwa.sharepoint.com/:u:/r/sites/DFW-TeamWDFWOPIModelReview/Shared%20Documents/General/sst.mnmean.nc?csf=1&web=1&e=mhx1bc",
+#                                #"C:\\Users\\sorelmhs\\Washington State Executive Branch Agencies\\DFW-Team WDFW OPI Model Review - General" ,
+#                              ncfilename="sst.mnmean.nc",
+#                              latrange=c(44,50),
+#                              lonrange=c(-125,-120)
+#                              )
+
+sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
+                           data.dir=here::here("data"),
+                           ncfilename="sst.mnmean_1_5_2026.nc",
+                           latrange=c(44,50),
+                           lonrange=c(-125,-120)
+)%>%
+  filter(!is.na(sst))%>%
+  group_by(year,month)%>%
+  summarize(meanSST=mean(sst,na.rm=T),n=n())%>%
+  mutate(year=as.numeric(year),
+         month=as.numeric(month)
+         )%>%
+  # bind_rows(read_csv(here::here("data/January_ERSST_v5_2025.csv"))%>%
+  #             dplyr::select(year,month,meanSST=SST)
+  #           
+  #           )%>%
+  group_by(month)%>%
+  mutate(gmeanSST=mean(meanSST,na.rm=T))%>%
+  ungroup()%>%
+  mutate(resid=meanSST-gmeanSST)
+
+
+ssta<-sstdat%>%
+  dplyr::select(year,month,resid)%>%
+  mutate(month=as.numeric(month))%>%
+  mutate(year=ifelse(month>9,year+1,year))%>%
+  group_by(year)%>%
+  summarise(WSST_A = mean(resid[month>9|month<2]),
+            SSST_A = mean(resid[month<=9|month>=4]),
+            )
+
+#================
+#Plot ERSST data
+#================
+# ggplot(sstdat,aes(x=factor(month),y=meanSST,group=year))+
+#   geom_hline(yintercept=0,linetype="dashed")+
+#   scale_color_brewer(palette = "Spectral")+
+#   geom_line()+
+#   facet_wrap(~factor(year))
+# 
+# ggplot(sstdat,aes(x=factor(month),y=resid,group=year))+
+#   geom_hline(yintercept=0,linetype="dashed")+
+#   scale_color_brewer(palette = "Spectral")+
+#   geom_line()+
+#   facet_wrap(~factor(year))
+# 
+# ggplot(sstdat,aes(x=factor(month),y=sstdiff,group=year))+
+#   geom_hline(yintercept=0,linetype="dashed")+
+#   scale_color_brewer(palette = "Spectral")+
+#   geom_line()+
+#  facet_wrap(~factor(year))
+#==========================================
+#Get OCN covariates
+#==========================================
+OCN<-read_csv("data/OCNR_Forecast_Summary.csv")%>%
+  as_tibble()%>%
+  dplyr::rename(year=YEAR)%>%
+  dplyr::select(-c("ADULTS","SPAWNERS","Spawners"))
+#================================================================
+dat<-OPIHData%>%
+  right_join(Yrlist)%>%
+  left_join(PDO)%>%
+  left_join(NPGO)%>%
+  # left_join(indicators)%>%
+  # left_join(enso)%>%
+  left_join(ssta)%>%
+  left_join(OCN)%>%
+  dplyr::rename(lag1_JackOPI = lagJackOPI,
+                lag1_SmAdj = lagSmAdj
+                )%>%
+  mutate(species = "Coho",
+         period = 1,
+         lag1_log_JackOPI = log(lag1_JackOPI),
+         lag1_log_SmAdj = log(lagJackCR) * (lagSmD/lagSmCR),
+         lag1_sp_phys_trans = lag( "Physical Spring Trans.\r\nUI based (day of year)")
+         )%>%
+  ungroup()%>%
+  dplyr::select(year,species,period,abundance,all_of(unique(unlist(covariates))))%>%
+  filter(
+    across(
+      .cols = all_of(unique(unlist(covariates))),
+      .fns = ~ !is.na(.x)
+    )
+  )#%>%mutate(across(!c(year,species,period,abundance),boxcox_scale(.)))
+ write.csv(dat,here::here("data/dat.csv"))
+ return(read_csv(here::here(file_path)))
+ }#closes Else
+  
+}#closes makedat function
+
+dat<-make_dat("data/dat.csv")
+
+dat%>%
+  dplyr::select(-c(year,species,period,abundance,`...1`))%>%
+  cor()%>%
+  ggcorrplot(hc.order = TRUE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05)
+
+dat%>%
+  dplyr::select(-c(year,species,period,abundance,`...1`)) %>%
+  cor() %>%
+  round(.,2)
+
+
+#read in OPIH data (again) to use for evaluating the current (as of 2022) forecasting methodology
+{
+OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+
+if(max(OPIHData$Year)<year(Sys.Date())){
+  maxyear=max(OPIHData$Year)+1
+  OPIHData%<>%
+    right_join(tibble(Year=c(unique(OPIHData$Year),year(Sys.Date()))))
+}
+
+nYears <- length(OPIHData[,1])
+earliestYear <- OPIHData[1,1]
+latestYear <- OPIHData[nYears,1]
+
+OPIHData$AdltAll <- c(OPIHData$AdltSRS[1:17],OPIHData$AdltMSM[18:nYears])   # row 18  <-  1986. Use SRS data prior, MSM data post
+OPIHData$AdltAllno83 <- OPIHData$AdltAll
+OPIHData$AdltAllno83[15] <-  NA   #  1983 is removed from model input data
+OPIHData[,"AdltAll"] <- OPIHData$AdltAll
+OPIHData[,"AdltAllno83"] <- OPIHData$AdltAllno83
+
+# Lag Jack and Smolt data to return year
+OPIHData[,"lagJackCR"] <- c(NA, OPIHData$JackCR[1:nYears-1])
+OPIHData[,"lagJackOC"] <- c(NA, OPIHData$JackOC[1:nYears-1])
+OPIHData[,"lagJackOPI"] <- OPIHData$lagJackCR + OPIHData$lagJackOC
+
+OPIHData[,"lagSmD"] <- c(NA, OPIHData$SmD[1:nYears-1])
+OPIHData[,"lagSmCR"] <- c(NA, OPIHData$SmCR[1:nYears-1])
+OPIHData[,"lagSmAdj"] <- OPIHData$lagJackCR*(OPIHData$lagSmD/OPIHData$lagSmCR)   #  Calculate Smolt Adjustment
+
+# Output OPIHData as a .csv file
+#write.table(OPIHData, file = "OPIHData.csv", sep = ", ", row.names=FALSE)
+
+OPIHData%<>%
+  dplyr::rename(year=Year,
+                abundance = AdltAllno83
+                )%>%
+  as_tibble()%>%
+  arrange(year)
+
+Yrlist<-data.frame(year=c(min(OPIHData$year):(maxyear)))
+
+OPIHData%<>%
+  right_join(Yrlist)%>%
+  arrange(year)
+  }
+```
+
+
+
+## Analysis and summarization
+
+This section shows the code used to analyze the data and summarize the
+results
+
+```{r Analysis_v2, message=FALSE, warning=FALSE, results="hide"}
+
+# test_pack<-SalmonForecasting::do_forecast(dat,max_vars = max_vars,n_cores =8,ts_freq=2,seasonal = TRUE)
+# 
+# test_pack$plots_and_tables$Table2
+
+if(find_best ==T){
+  best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
+  saveRDS(best_covariates,"best_covariates_OPI_preseason.rds")
+}
+
+best_covariates<-readRDS("best_covariates_OPI_preseason.rds")
+
+# Table1 <- best_covariates[[2]]%>%
+  # dplyr::slice(1:num_models)%>%
+  # kbl(caption = "Table 1. Covariate Model Selection Results.",digits =3) %>%
+  # kable_classic(full_width = F, html_font = "Cambria")
+
+
+model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_models]],
+                   function(x) paste(x,collapse = " + "))%>%
+  unlist()%>%
+  as_tibble()%>%
+  add_rownames()%>%
+  dplyr::rename(model=rowname,model_name=value)
+
+
+if(!file.exists("results/forecasts3.rds")|redo_forecasts==TRUE){
+  results<-one_step_ahead(series=dat,
+                  leave_yrs=leave_yrs,
+                  TY_ensemble=TY_ensemble,
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]],
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  stack_metric = stack_metric,
+                  k=k
+                  )
+
+save(results3,file="results/forecasts3.rds")
+}else{
+  load("results/forecasts3.rds")
+}
+
+# contains_string <- function(lst, target) {
+#   sapply(lst, function(vec) target %in% vec)
+# }
+
+limit_vars <- function(lst, num) {
+  sapply(lst, function(vec) length(vec) <= num)
+}
+#
+# target_string <- "lag1_PDO"
+#
+# includesPDO<-contains_string(best_covariates[[1]], target_string)
+#
+# results3_no_PDO <-results3[results3$model %in% as.character(which(!includesPDO)),]
+# 
+lessthan<-limit_vars(best_covariates[[1]], 3)
+# 
+results3_2 <-results3[results3$model %in% as.character(which(lessthan)),]
+# nyr_check<-
+# SalmonForecasting::check_nyrs(
+#   One_ahead_out=results3_no_PDO,dat=dat,
+# num_models=num_models,TY_ensemble=TY_ensemble,
+#   model_list=model_list,
+#   alpha=0,model_to_plot="MAPE_weighted"
+# )
+
+# nyr_check$plot_perf
+# nyr_check$plot_pred
+
+alpha_check<-
+SalmonForecasting::check_alpha(
+  One_ahead_out=results3,dat=dat,
+num_models=num_models,TY_ensemble=TY_ensemble,
+screen_metric="MAPE",
+  model_list=model_list,
+  roll_years=rolling_year_window,model_to_plot="MAPE_weighted"
+)
+
+# alpha_check$plot_perf
+# alpha_check$plot_pred
+
+#calculate rolling performance
+## rolling_year_window<-15
+rp<-SalmonForecasting::rolling_perf(results3,dat,rolling_year_window,screen_metric=MAPE,num_models,TY_ensemble,model_list,alpha=alpha)
+# rp$performance
+
+
+
+ens<-SalmonForecasting::ensemble(forecasts=rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,
+                                 series=dat,
+                                 TY_ensemble=TY_ensemble,
+                                 k=1,
+                                 slide=rolling_year_window,
+                                 num_models=num_models,
+                                 stack_metric=stack_metric,
+                                 stretch=FALSE,
+                                 do_stacking = FALSE,
+                                 alpha=alpha)
+# ens$forecast_skill %>%filter(grepl("weight",model))
+
+# weighted<-
+# ens$ensembles |> filter(model=="MAPE_weighted") |> left_join(dat |> dplyr::select(year,abundance)) |> mutate(error=predicted_abundance-abundance) 
+
+
+results_old<-evaluate_old_model(data=OPIHData,TY_ensemble=TY_ensemble,yr_end = yr_end)  
+
+for_skill<-
+rp$performance %>% mutate(model="Best_individual") %>% bind_rows(
+ens$forecast_skill %>%filter(grepl("weight",model))
+) %>% 
+  bind_rows(results_old$forecast_skill %>% mutate(model="Current_OPI"))  %>%
+  arrange(MAPE)
+
+
+
+top_mods<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
+                  leave_yrs=1,
+                  TY_ensemble=1,
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]][rp$top_mods |> filter(year==2025) |> pull(model) |> as.numeric()],
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  stack_metric = stack_metric,
+                  k=1,
+                  include_mod = TRUE
+                  )
+
+top_mod_coefs<-bind_rows(lapply(top_mods$mod,\(x)x[[1]]))
+
+top_mod_ave_coef<-top_mod_coefs |> mutate(across(everything(),\(x)replace_na(x,0))) |>colMeans() |> tibble::enframe()
+
+sum(ens$final_model_weights$MAPE_weight*top_mod_coefs$lag1_PDO)
+
+top_mods_24<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
+                  leave_yrs=1,
+                  TY_ensemble=1,
+                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+                  best_covariates[[1]][rp$top_mods |> filter(year==2024) |> pull(model) |> as.numeric()],
+                  first_forecast_period = first_forecast_period,
+                  plot_results = plot_results,
+                  write_model_summaries = write_model_summaries,
+                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
+                  forecast_period_start_d =  forecast_period_start_d, #inclusive
+                  stack_metric = stack_metric,
+                  k=k,
+                  include_mod = TRUE
+                  )
+
+top_mod_coefs_24<-bind_rows(lapply(top_mods_24$mod,\(x)x[[1]]))
+
+top_mod_ave_coef_24<-top_mod_coefs_24 |> mutate(across(everything(),\(x)replace_na(x,0))) |>colMeans() |> tibble::enframe()
+
+```
+
+
+
+
+
+
+
+
+```{r results_stuff, message=FALSE, warning=FALSE, results="hide"}
+
+Table2<-for_skill%>% mutate(model=sub("_"," ",model))%>% rename(Model=model)%>% 
+  kbl(caption = paste0("Table 2. One step ahead individual and ensemble model performance"),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+
+
+Table3<-
+  # results$forecasts%>%
+  # filter(year==max(year))%>%
+  rp$top_mods %>% filter(rank==1) %>% arrange(year) %>% 
+  dplyr::select(year,model_name,predicted_abundance,`Lo 50`,`Hi 50`,`Lo 95`,`Hi 95`) %>% #,Stacking_weight)%>%
+     rename(Year=year,Model=model_name,`Predicted abundance` =predicted_abundance) %>% 
+  kbl(caption = paste0("Table 3. Individual models which performed the best in",stack_metric," based on a",rolling_year_window, "year retrsopective analysis, and their forecasts."),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+  
+best_model<-"MAPE_weighted"#for_skill$model[1]
+
+
+  results_best<-rp$top_mods %>% filter(model==best_model) %>% #mutate(model="MAPE_weighted") %>% 
+  bind_rows(
+  ens$ensembles %>% left_join(dat %>% dplyr::select(year,abundance)) %>% mutate(model_name=model)
+) %>% filter(model==best_model) %>% 
+  dplyr::select(year,model_name,abundance,
+                  predicted_abundance,"Lo 50",
+                "Hi 50","Lo 95","Hi 95") %>% 
+  mutate(error=predicted_abundance-abundance,
+         pct_errpr=error/abundance)
+
+
+
+
+
+
+Table4<-results_best%>%
+   rename(Year=year,Model=model_name,Abundance=abundance,`Predicted abundance`=predicted_abundance,`% error`=pct_errpr) %>% 
+  # dplyr::select(!c("train_test","Stacking_weight","model_name") & !c(covariates[covariates%in%names(results_best)]))%>%
+  kbl(caption = paste0("Table 4. One-year-ahead forecasts of OPI ", species," based on the ",best_model," model."),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
+ggplot2::geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
+  ggplot2::geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
+  geom_line()+
+  geom_point(aes(x=year,y=abundance))+
+  ylim(0,NA)+
+  scale_x_continuous(breaks=unique(results_best$year))+ylab("Ocean abundance")+xlab("")
+
+
+
+Figure2<-ggplot(rp$top_mods %>%
+                  filter(rank==1) %>%
+                  mutate(model="Best_individual") %>%
+                  filter(year > (yr_end-TY_ensemble))%>%
+                  bind_rows(
+                    ens$ensembles %>%
+                      left_join(dat %>%
+                                  dplyr::select(year,abundance)) %>%
+                      mutate(model_name=model))
+                ,aes(x=year,y=predicted_abundance,col=model))+
+  geom_line()+
+  geom_line(data=results_best,mapping=aes(x=year,y=predicted_abundance),size=1.1,col="black")+
+  geom_line(data=results_old$forecasts,mapping=aes(x=year,y=predicted_abundance),size=1.25,col="grey")+
+  geom_point(aes(x=year,y=abundance),color="black")+
+  ylim(0,NA)+
+  scale_x_continuous(breaks=unique(results_best$year))+
+  theme(legend.position = "none")+
+  ylab("Ocean abundance")+xlab("")
+  #theme(legend.key.size=unit(.15,'cm'),legend.position = "top")
+
+
+Figure3<-ggplot((results_old$forecasts%>%mutate(model_name="Current_OPI") %>% bind_rows(results_best ) %>% mutate(Model=sub("_"," ",model_name)) %>%  mutate(pct_error=log10(((predicted_abundance-abundance)/abundance)+1))) %>% filter(year<yr_end),
+                  aes(x=year,y=pct_error,color=Model))+geom_hline(yintercept=0)+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))+xlab("")+ylab(expression(paste(log[10], "(% error +1)")))
+
+
+```
+
+
+
+
+
+## Results
+
+<!-- Table 1 shows the model selection results sorted by AIC based on in-sample fits of ARIMA models tested on all subsets of covariates to the full (all years) data set. The ARIMA model structure for each covariate set was selected by the auto.arima function in the forecast package. These model selection results are generated as a first step to identify the top models for further use in evaluating out-of-sample one-step-ahead forecast skill, and constructing ensembles. -->
+
+<!-- ```{r message=FALSE, warning=FALSE, results="show"} -->
+
+<!-- Table1 -->
+
+<!-- ``` -->
+
+Table 2 shows the model selection results sorted by `r stack_metric`
+based on `r TY_ensemble-1` years of out-of-sample one-step-ahead
+leave-one-out cross validation. Results include both individual ARIMA
+models as well as weighted ensembles. Ensembles include both a "stacking
+weight" ensemble where an optimization algorithm is used to identify the
+weights that maximize out-of-sample one-step-ahead performance over a
+sliding `r 15` year window using the selected performance metric for the
+training years, as more traditional ensembles using a harmonic mean
+where weight $w$ may be calculated for model $i$ from model set $K$
+based on it's skill $s$ versus that of other models in the set, where
+$s$ may be measured by RMSE, MASE, MAPE, MSA, etc:
+$${w}_{i} = \frac {{s}_{i}^{-1}} {\sum_{i=1}^{K} {s}_{i}^{-1}} $$
+
+```{r message=FALSE, warning=FALSE, results="show"}
+Table2
+```
+
+Table 3 shows predictions of total run size for the individual model that
+would have been selected in each year, as well as which model would have
+been selected.
+
+```{r message=FALSE, warning=FALSE, results="show"}
+Table3
+```
+
+Table 4 and Figure 1 shows annual one-step-ahead predictions of
+abundance for the best individual model, including 50 and 95% prediction intervals
+relative to the observed abundance (black dots in Figure 1).
+
+```{r message=FALSE, warning=FALSE, results="show"}
+Table4
+```
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 1. One-step-ahead predictions (black line) of total OPI coho abundance for the best model relative to observed abundance (black dots). Prediction intervals are shown as blue shading including 50% (dark), 95% (light)"}
+Figure1
+```
+
+Figure 2 shows the annual one-step-ahead predictions of abundance
+(lines) for the entire model set and the observed abundance (black
+dots), the MAPE averaged forecast (thick black line), and the existing OPI
+forecast (thick grey line).
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 2. One-step-ahead predictions (lines) of total OPI coho abundance for the top model set relative to observed abundance (black dots)."}
+Figure2
+```
+
+Figure 3 shows the log transformed percent forecast error of the current and new model over time.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 3. The log transformed percent forecast error of the current and new model over time."}
+Figure3
+```
+
+
+
+Figure 4 shows the average effect of each of the predictors on the forecast. There is also an intercept, which averaged `r round(top_mod_ave_coef |> filter(name=="intercept") |> pull(value),2)` and each of the top models had a lag 1 moving average (MA1) coefficient (average = `r round(top_mod_ave_coef |> filter(name=="ma1") |> pull(value),2)`), such that when  a positive forecast error (actual value > predicted) lead to a decrease in the next forecast.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 4. Effects of covariates on 2025 forecast."}
+
+
+top_mod_ave_coef |> filter(!name%in%c("intercept","ma1","ar1","sar1")) |>
+  left_join(
+   dat |> mutate(across(all_of(covariates),\(x)c(scale(x))))|> filter(year==2025) |> dplyr::select(all_of(covariates) ) |> c() |> unlist() |> enframe() |> rename("coef"="value")
+    
+    
+  ) |> mutate(loading=value*coef) |> 
+  
+  
+  ggplot2::ggplot(aes(x=name,y=loading))+ggplot2::geom_col() +ggplot2::theme(axis.text.x = element_text(angle = 45, vjust = .9, hjust=1))+ylab("Average effect of predictor on forecast")
+
+```
+
+Figure 5 shows the average effect of each of the predictors on the 2024 forecast. There is also an intercept, which averaged `r round(top_mod_ave_coef |> filter(name=="intercept") |> pull(value),2)` and each of the top models had a lag 1 moving average (MA1) coefficient (average = `r round(top_mod_ave_coef |> filter(name=="ma1") |> pull(value),2)`), such that when  a positive forecast error (actual value > predicted) lead to a decrease in the next forecast.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 5. Effects of covariates on 2024 forecast."}
+
+
+top_mod_ave_coef_24 |> filter(!name%in%c("intercept","ma1","ar1","sar1")) |>
+  left_join(
+    dat |> mutate(across(all_of(covariates),\(x)c(scale(x))))|> filter(year==2024) |> dplyr::select(all_of(covariates) ) |> c() |> unlist() |> enframe() |> rename("coef"="value")
+    
+    
+  ) |> mutate(loading=value*coef) |> 
+  
+  
+  ggplot2::ggplot(aes(x=name,y=loading))+ggplot2::geom_col() +ggplot2::theme(axis.text.x = element_text(angle = 45, vjust = .9, hjust=1))+ylab("Average effect of predictor on forecast")
+
+```
+
+
+Figure 6 shows time series of the z-scored covariate values.
+
+```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 6. Standardized covariate values by year of forecast for most recent 10 years."}
+
+integer_breaks <- function(n = 5, ...) {
+  fxn <- function(x) {
+    breaks <- floor(pretty(x, n, ...))
+    names(breaks) <- attr(breaks, "labels")
+    breaks
+  }
+  return(fxn)
+}
+
+
+dat %>% dplyr::select(all_of(covariates),year) %>% mutate(across(all_of(covariates),function(x)c(scale(x))),year=as.integer(year)) %>% pivot_longer(all_of(covariates),values_to = "Z-scored value") %>% filter(between(year,2000,2025)) %>% ggplot(aes(x=year,y=`Z-scored value`))+geom_point()+geom_line() + facet_wrap(~name)+geom_hline(yintercept = 0,lty=2)+scale_x_continuous(breaks=integer_breaks(),guide = guide_axis(check.overlap = TRUE))
+
+```
+
+
+
+## Appendix
+
+Appendix 1 shows the raw data and covariates used in modeling.
+
+```{r message=FALSE, warning=FALSE, results="show"}
+dat%>%
+  dplyr::select(-period,-`...1`)%>%
+  kbl(caption ="Appendix 1. data used for forecasting OPI Coho",digits =2)%>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+
+OPI data and covariate notes: 1) Jack OPI = Total Jack CR and Jack OC.
+2) Jack CR = Columbia River jack returns corrected for small adults. 3)
+Jack OC = Oregon coastal and California hatchery jack returns corrected
+for small adults. 4) Total OPI = Columbia River (Sm D + Sm CR), Oregon
+coastal and Klamath Basin. 5) Sm CR = Columbia River smolt releases from
+the previous year expected to return as adults in the year listed. 6) Sm
+D = Columbia River delayed smolt releases from the previous year
+expected to return as adults in the year listed 7) SmAdj = JackCR\*(Sm
+D/Sm CR) (this is a covariate used in the past OPI forecast)
+
+OCN covariates 1) Multivariate ENSO Index (Oct-Dec; t-1) 2) Spring
+Transition (Julian date; t-1) 3) Upwelling (July-Sept; t-1) 4) Upwelling
+(Sep-Nov; t-1) 5) Sea Surface Temperature (Jan; t) 6) Sea Surface Height
+(April-June; t-1) 7Z)PDO (mean May-July; averaged over the 4-years prior
+to the return year)
+
+Ancillary Covariates 1) [Pacific Decadal
+Oscillation](https://www.ncei.noaa.gov/access/monitoring/pdo/) 2) [North
+Pacific Gyre Oscillation](http://www.o3d.org/npgo/) 3) [NOAA Ocean
+Indicators](https://www.fisheries.noaa.gov/west-coast/science-data/ocean-ecosystem-indicators-pacific-salmon-marine-survival-northern)
+4) [NOAA NOAA Extended Reconstructed SST version
+5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html) 5) [NOAA
+Oceanic Nino 3.4 Index (lag 1 Oct-December
+mean)](https://psl.noaa.gov/gcos_wgsp/Timeseries/Nino34/)
