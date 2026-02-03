@@ -152,7 +152,7 @@ species="Coho"
 # Summarization for analysis
 #===========================
 date_start_analysis<-ymd("1967/1/1") #this will be the first date of data used in the analysis (and this month/day first in years thereafter)
-date_end_analysis<-ymd("2025/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
+date_end_analysis<-ymd("2026/12/31") #this will be the last date of data used in the analysis (and this month/day last in years preceding)
 forecast_period_start_m<-1 #this will be the month associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 forecast_period_start_d<-1 #this will be the month day associated with the first month/day of the seasonal estimate period each year...can be after first data used to estimate it or the same
 last_data<-Sys.Date()
@@ -203,7 +203,7 @@ forecast_type<-"preseason"
 stack_metric<-"MAPE"
 num_models<-10
 rolling_year_window<-15
-alpha<-0.25 # exponential smoothing of APE calculations
+alpha<-0.3 # exponential smoothing of APE calculations
 
 inputs<-list(
   yr_start = yr_start,
@@ -253,7 +253,8 @@ if(file.exists(file_path)){
   
 }else{
 #OPIHData <- read.table("https://raw.githubusercontent.com/ErikSuring/OPIH_Evaluation/main/PUB2023.txt", header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
-OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+# OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+OPIHData<-readxl::read_excel(here::here("data/covars_jan2025_MS.xlsx")) |> as.data.frame()
 
 if(max(OPIHData$Year)<year(Sys.Date())){
   maxyear=max(OPIHData$Year)+1
@@ -391,7 +392,7 @@ NPGO<-read_table("https://www.o3d.org/npgo/data/NPGO.txt",skip=29,col_names=F,co
 
 sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
                            data.dir=here::here("data"),
-                           ncfilename="sst.mnmean_1_5_2026.nc",
+                           ncfilename="sst.mnmean_1_27_2026.nc",
                            latrange=c(44,50),
                            lonrange=c(-125,-120)
 )%>%
@@ -401,10 +402,10 @@ sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
   mutate(year=as.numeric(year),
          month=as.numeric(month)
          )%>%
-  # bind_rows(read_csv(here::here("data/January_ERSST_v5_2025.csv"))%>%
-  #             dplyr::select(year,month,meanSST=SST)
-  #           
-  #           )%>%
+  bind_rows(read_csv(here::here("data/January_ERSST_v5_2026.csv"))%>%
+              dplyr::select(year,month,meanSST=SST)
+
+            )%>%
   group_by(month)%>%
   mutate(gmeanSST=mean(meanSST,na.rm=T))%>%
   ungroup()%>%
@@ -443,10 +444,10 @@ ssta<-sstdat%>%
 #==========================================
 #Get OCN covariates
 #==========================================
-OCN<-read_csv("data/OCNR_Forecast_Summary.csv")%>%
-  as_tibble()%>%
-  dplyr::rename(year=YEAR)%>%
-  dplyr::select(-c("ADULTS","SPAWNERS","Spawners"))
+OCN<-readxl::read_excel("data/OCNR_Forecast_Covar.xlsx")%>%
+  # as_tibble()%>%
+  dplyr::rename(year=YEAR)#%>%
+  # dplyr::select(-c("ADULTS","SPAWNERS","Spawners"))
 #================================================================
 dat<-OPIHData%>%
   right_join(Yrlist)%>%
@@ -482,19 +483,78 @@ dat<-OPIHData%>%
 dat<-make_dat("data/dat.csv")
 
 dat%>%
-  dplyr::select(-c(year,species,period,abundance,`...1`))%>%
-  cor()%>%
-  ggcorrplot(hc.order = TRUE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05)
+  dplyr::select(-c(year,species,period,`...1`))%>%
+  cor(use="pairwise.complete.obs")%>%
+  ggcorrplot(hc.order = FALSE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05,method="circle")
 
-dat%>%
-  dplyr::select(-c(year,species,period,abundance,`...1`)) %>%
-  cor() %>%
-  round(.,2)
+
+
+# ggsave(filename="corplot.png")
+
+# 
+# dat%>%
+#   dplyr::select(-c(species,period))%>%
+#   pivot_longer(abundance:UWI.SON) |>
+#   group_by(name) |> 
+#   mutate(value=scale(value),
+#          this_year=(year==2026)) |> 
+#     # filter(year>=2015) |> 
+#   ggplot(aes(x=year,y=value,fill=this_year))+geom_col()+facet_wrap(~name)+ylab("Z score")+theme(axis.title.x = element_blank(),legend.position = "none")+scale_fill_manual(values=c("black","firebrick3"))+scale_x_continuous(breaks=c(1975,2000,2025))
+# 
+# ggsave(filename=here::here("covariates_all_yrs.png"))
+
+
+# dat%>%
+#   dplyr::select(-c(species,period))%>%
+#   pivot_longer(abundance:UWI.SON) |>
+#   group_by(name) |> 
+#   mutate(value=scale(value),
+#          this_year=(year==2026)) |> 
+#     filter(year>=2015) |>
+#   ggplot(aes(x=year,y=value,fill=this_year))+geom_col()+facet_wrap(~name)+ylab("Z score")+theme(axis.title.x = element_blank(),legend.position = "none")+scale_fill_manual(values=c("black","firebrick3"))+scale_x_continuous(breaks=c(2015,2020,2025))
+# 
+# ggsave(filename=here::here("covariates_recent.png"))
+#   
+# 
+# dat%>%
+#   dplyr::select(-c(species,period))%>%
+#   pivot_longer(abundance:UWI.SON) |>
+#
+#   group_by(name) |>
+#   mutate(value=scale(value),
+#          this_year=(value>0)) |>
+#     # filter(year>=2015) |>
+#   ggplot(aes(x=year,y=value,fill=this_year))+geom_col()+facet_wrap(~name)+ylab("Z score")+theme(axis.title.x = element_blank(),legend.position = "none")+scale_fill_manual(values=c("darkblue","firebrick3"))+scale_x_continuous(breaks=c(2075,2000,2025))
+
+# ggsave(filename=here::here("covariates2_all_yers.png"))
+
+
+
+
+# dat%>%
+#   dplyr::select(-c(species,period))%>%
+#   pivot_longer(abundance:UWI.SON) |>
+# 
+#   group_by(name) |>
+#   mutate(value=scale(value),
+#          this_year=(value>0)) |>
+#     filter(year>=2015) |>
+#   ggplot(aes(x=year,y=value,fill=this_year))+geom_col()+facet_wrap(~name)+ylab("Z score")+theme(axis.title.x = element_blank(),legend.position = "none")+scale_fill_manual(values=c("darkblue","firebrick3"))+scale_x_continuous(breaks=c(2015,2020,2025))
+
+# ggsave(filename=here::here("covariates2_recent.png"))
+
+# 
+#   cor(use="pairwise.complete.obs")%>%
+#   ggcorrplot(hc.order = FALSE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05,method="circle")
+# 
+# 
 
 
 #read in OPIH data (again) to use for evaluating the current (as of 2022) forecasting methodology
 {
-OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+# OPIHData<-read.table(here::here("data/PUB2024_manual_update.txt"), header = TRUE, sep = "\t", strip.white = TRUE, comment.char = "#")
+OPIHData<-readxl::read_excel(here::here("data/covars_jan2025_MS.xlsx")) |> as.data.frame()
+
 
 if(max(OPIHData$Year)<year(Sys.Date())){
   maxyear=max(OPIHData$Year)+1
@@ -553,7 +613,7 @@ results
 # test_pack$plots_and_tables$Table2
 
 if(find_best ==T){
-  best_covariates<-all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
+   best_covariates<-SalmonForecasting::all_subsets(series=dat,covariates=covariates,min=min_vars,max=max_vars,type=forecast_type,fit=FALSE)
   saveRDS(best_covariates,"best_covariates_OPI_preseason.rds")
 }
 
@@ -573,25 +633,31 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
   dplyr::rename(model=rowname,model_name=value)
 
 
-if(!file.exists("results/forecasts3.rds")|redo_forecasts==TRUE){
-  results<-one_step_ahead(series=dat,
+if(!file.exists("results/forecasts_2-3-26.rds")|redo_forecasts==TRUE){
+  results<-SalmonForecasting::one_step_ahead(
+    series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
                   # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
-                  best_covariates[[1]],
+                  covariates=best_covariates[[1]],
                   first_forecast_period = first_forecast_period,
+                  ts_freq = 1,
+                  seasonal = FALSE,
                   plot_results = plot_results,
                   write_model_summaries = write_model_summaries,
                   forecast_period_start_m =  forecast_period_start_m, #inclusive 
                   forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  stack_metric = stack_metric,
-                  k=k
+                  n_cores=8,
+  include_mod = TRUE
                   )
 
-save(results3,file="results/forecasts3.rds")
+save(results,file="results/forecasts_2-3-26.rds")
 }else{
-  load("results/forecasts3.rds")
+  load("results/forecasts_2-3-26.rds")
 }
+
+gc()
+
 
 # contains_string <- function(lst, target) {
 #   sapply(lst, function(vec) target %in% vec)
@@ -607,9 +673,9 @@ limit_vars <- function(lst, num) {
 #
 # results3_no_PDO <-results3[results3$model %in% as.character(which(!includesPDO)),]
 # 
-lessthan<-limit_vars(best_covariates[[1]], 3)
+# lessthan<-limit_vars(best_covariates[[1]], 3)
 # 
-results3_2 <-results3[results3$model %in% as.character(which(lessthan)),]
+# results3_2 <-results3[results3$model %in% as.character(which(lessthan)),]
 # nyr_check<-
 # SalmonForecasting::check_nyrs(
 #   One_ahead_out=results3_no_PDO,dat=dat,
@@ -621,23 +687,31 @@ results3_2 <-results3[results3$model %in% as.character(which(lessthan)),]
 # nyr_check$plot_perf
 # nyr_check$plot_pred
 
-alpha_check<-
-SalmonForecasting::check_alpha(
-  One_ahead_out=results3,dat=dat,
-num_models=num_models,TY_ensemble=TY_ensemble,
-screen_metric="MAPE",
-  model_list=model_list,
-  roll_years=rolling_year_window,model_to_plot="MAPE_weighted"
-)
+  
+# alpha_check<-
+# SalmonForecasting::check_alpha(
+#   One_ahead_out=results,dat=dat,
+# num_models=num_models,TY_ensemble=TY_ensemble,
+# screen_metric="MAPE",
+#   model_list=model_list,
+#   roll_years=rolling_year_window,model_to_plot="MAPE_weighted"
+# )
 
 # alpha_check$plot_perf
+#ggsave("alpha_perf.png")
 # alpha_check$plot_pred
+#ggsave("alpha_pred.png")
+# 
+# gridExtra::arrangeGrob(alpha_check$plot_perf+theme(axis.title.x = element_blank()), alpha_check$plot_pred, ncol = 1) |> ggsave(filename="alpha_both.png")
 
 #calculate rolling performance
 ## rolling_year_window<-15
-rp<-SalmonForecasting::rolling_perf(results3,dat,rolling_year_window,screen_metric=MAPE,num_models,TY_ensemble,model_list,alpha=alpha)
+results<-results |> dplyr::select(-eq)
+
+rp<-SalmonForecasting::rolling_perf(results,dat,rolling_year_window,screen_metric=MAPE,num_models,TY_ensemble,model_list,alpha=alpha)
 # rp$performance
 
+results<-results |> dplyr::select(-mod)
 
 
 ens<-SalmonForecasting::ensemble(forecasts=rp$all_mods %<>% group_by(year) %>% mutate(rank=rank(MAPE)) %>% ungroup,
@@ -655,6 +729,16 @@ ens<-SalmonForecasting::ensemble(forecasts=rp$all_mods %<>% group_by(year) %>% m
 # weighted<-
 # ens$ensembles |> filter(model=="MAPE_weighted") |> left_join(dat |> dplyr::select(year,abundance)) |> mutate(error=predicted_abundance-abundance) 
 
+# rp$top_mods |> head(10) |> dplyr::select(predicted_abundance,model_name,MAPE,model,arma) |> left_join(ens$final_model_weights |> dplyr::select(model,MAPE_weight)) |>
+#   dplyr::select(Prediction=predicted_abundance,MAPE,MAPE_weight,model=model_name,arma)|>
+#     kbl(digits =2)%>%
+#   kable_classic(full_width = F, html_font = "Cambria")
+  
+# rp$top_mods |> head(10) |> dplyr::select(predicted_abundance,eq,MAPE,model,arma) |> left_join(ens$final_model_weights |> dplyr::select(model,MAPE_weight)) |> 
+#   dplyr::select(Prediction=predicted_abundance,MAPE,MAPE_weight,model=eq,arma)|> 
+#     kbl(digits =2)%>%
+#   kable_classic(full_width = F, html_font = "Cambria")
+
 
 results_old<-evaluate_old_model(data=OPIHData,TY_ensemble=TY_ensemble,yr_end = yr_end)  
 
@@ -667,45 +751,45 @@ ens$forecast_skill %>%filter(grepl("weight",model))
 
 
 
-top_mods<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
-                  leave_yrs=1,
-                  TY_ensemble=1,
-                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
-                  best_covariates[[1]][rp$top_mods |> filter(year==2025) |> pull(model) |> as.numeric()],
-                  first_forecast_period = first_forecast_period,
-                  plot_results = plot_results,
-                  write_model_summaries = write_model_summaries,
-                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
-                  forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  stack_metric = stack_metric,
-                  k=1,
-                  include_mod = TRUE
-                  )
+# top_mods<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
+#                   leave_yrs=1,
+#                   TY_ensemble=1,
+#                   # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
+#                   best_covariates[[1]][rp$top_mods |> filter(year==2026) |> pull(model) |> as.numeric()],
+#                   first_forecast_period = first_forecast_period,
+#                   plot_results = plot_results,
+#                   write_model_summaries = write_model_summaries,
+#                   forecast_period_start_m =  forecast_period_start_m, #inclusive
+#                   forecast_period_start_d =  forecast_period_start_d, #inclusive
+#                   stack_metric = stack_metric,
+#                   k=1,
+#                   include_mod = TRUE
+#                   )
+# 
+# top_mod_coefs<-bind_rows(lapply(top_mods$mod,\(x)x[[1]])) |> mutate(model=rp$top_mods |> filter(year==2026) |> pull(model) ) |>
+#   left_join(ens$final_model_weights |> dplyr::select(model,MAPE_weight)) |>
+#   left_join(results |> filter(year==2026) |> dplyr::select(model,predicted_abundance))
+#   
+# 
+# top_mod_coef_info<-
+# top_mod_coefs |> mutate(across(dplyr::matches(covariates),\(x){x*MAPE_weight})) |> dplyr::select(dplyr::matches(covariates)) |>colSums(na.rm=TRUE)|> tibble::enframe("name","Average coefficient") |> arrange(desc(abs(`Average coefficient`))) |> left_join(
+# 
+# dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))) |> filter(year==2026) |> dplyr::select(dplyr::matches(covariates))|>
+# pivot_longer(everything(),values_to = "2026 covariate (Z-score)")
+# ) |>
+#   mutate("2026 covariate * ave. coeficient"=`Average coefficient`*`2026 covariate (Z-score)`)
+# 
+# 
+# top_mod_coef_info |>
+#   pivot_longer(`Average coefficient`:last_col(),names_to = "var",values_to = "value") |>
+#   mutate(var=fct_relevel(var,c("2026 covariate (Z-score)","Average coefficient","2026 covariate * ave. coeficient"))) |>
+# ggplot(aes(x=name,y=value))+geom_col()+facet_wrap(~var,scales="free")+theme(  axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+#                                                                               axis.title = element_blank(),
+#                plot.margin = margin(t = 0.5, r = .5, b = 0.5, l = 1, unit = "cm") # Add right margin
+#                )
+# 
+# ggsave("cov_effects.png")
 
-top_mod_coefs<-bind_rows(lapply(top_mods$mod,\(x)x[[1]]))
-
-top_mod_ave_coef<-top_mod_coefs |> mutate(across(everything(),\(x)replace_na(x,0))) |>colMeans() |> tibble::enframe()
-
-sum(ens$final_model_weights$MAPE_weight*top_mod_coefs$lag1_PDO)
-
-top_mods_24<-one_step_ahead(series=dat |> mutate(across(all_of(covariates),\(x)c(scale(x)))),
-                  leave_yrs=1,
-                  TY_ensemble=1,
-                  # covariates= best_covariates[[1]][best_covariates[[2]]$model_num[1:num_models]],
-                  best_covariates[[1]][rp$top_mods |> filter(year==2024) |> pull(model) |> as.numeric()],
-                  first_forecast_period = first_forecast_period,
-                  plot_results = plot_results,
-                  write_model_summaries = write_model_summaries,
-                  forecast_period_start_m =  forecast_period_start_m, #inclusive 
-                  forecast_period_start_d =  forecast_period_start_d, #inclusive
-                  stack_metric = stack_metric,
-                  k=k,
-                  include_mod = TRUE
-                  )
-
-top_mod_coefs_24<-bind_rows(lapply(top_mods_24$mod,\(x)x[[1]]))
-
-top_mod_ave_coef_24<-top_mod_coefs_24 |> mutate(across(everything(),\(x)replace_na(x,0))) |>colMeans() |> tibble::enframe()
 
 ```
 
@@ -761,15 +845,25 @@ Table4<-results_best%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
+Table4.1<-results_best%>%
+   rename(Year=year,Model=model_name,Abundance=abundance,`Predicted abundance`=predicted_abundance,`% error`=pct_errpr) %>% 
+  filter(Year==2026) |> dplyr::select(`Predicted abundance`:`Hi 95`) |> 
+  # dplyr::select(!c("train_test","Stacking_weight","model_name") & !c(covariates[covariates%in%names(results_best)]))%>%
+  kbl(caption = paste0("Forecast of 2026 OPI ", species," based on the ",best_model," model."),digits =2)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+
+
 Figure1<-ggplot(results_best,aes(x=year,y=predicted_abundance))+
 ggplot2::geom_ribbon(aes(ymin=`Lo 95`,ymax=`Hi 95`),color=NA,alpha=0.5,fill = "cadetblue")+
   ggplot2::geom_ribbon(aes(ymin=`Lo 50`,ymax=`Hi 50`),color=NA,alpha=0.5,fill = "cadetblue")+
   geom_line()+
   geom_point(aes(x=year,y=abundance))+
   ylim(0,NA)+
-  scale_x_continuous(breaks=unique(results_best$year))+ylab("Ocean abundance")+xlab("")
+  scale_x_continuous(breaks=seq(min(results_best$year),max(results_best$year),by=3))+ylab("Ocean abundance")+xlab("")
 
-
+# ggsave(filename="fig1.png")
 
 Figure2<-ggplot(rp$top_mods %>%
                   filter(rank==1) %>%
@@ -786,16 +880,17 @@ Figure2<-ggplot(rp$top_mods %>%
   geom_line(data=results_old$forecasts,mapping=aes(x=year,y=predicted_abundance),size=1.25,col="grey")+
   geom_point(aes(x=year,y=abundance),color="black")+
   ylim(0,NA)+
-  scale_x_continuous(breaks=unique(results_best$year))+
+  scale_x_continuous(breaks=seq(min(results_best$year),max(results_best$year),by=3))+
   theme(legend.position = "none")+
   ylab("Ocean abundance")+xlab("")
   #theme(legend.key.size=unit(.15,'cm'),legend.position = "top")
 
+# ggsave(filename="fig2.png")
 
 Figure3<-ggplot((results_old$forecasts%>%mutate(model_name="Current_OPI") %>% bind_rows(results_best ) %>% mutate(Model=sub("_"," ",model_name)) %>%  mutate(pct_error=log10(((predicted_abundance-abundance)/abundance)+1))) %>% filter(year<yr_end),
                   aes(x=year,y=pct_error,color=Model))+geom_hline(yintercept=0)+geom_line(lwd=1.25)+scale_color_manual(values=c("darkblue","darkred"))+xlab("")+ylab(expression(paste(log[10], "(% error +1)")))
 
-
+# ggsave(filename="fig3.png")
 ```
 
 
@@ -866,42 +961,9 @@ Figure3
 
 
 
-Figure 4 shows the average effect of each of the predictors on the forecast. There is also an intercept, which averaged `r round(top_mod_ave_coef |> filter(name=="intercept") |> pull(value),2)` and each of the top models had a lag 1 moving average (MA1) coefficient (average = `r round(top_mod_ave_coef |> filter(name=="ma1") |> pull(value),2)`), such that when  a positive forecast error (actual value > predicted) lead to a decrease in the next forecast.
-
-```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 4. Effects of covariates on 2025 forecast."}
 
 
-top_mod_ave_coef |> filter(!name%in%c("intercept","ma1","ar1","sar1")) |>
-  left_join(
-   dat |> mutate(across(all_of(covariates),\(x)c(scale(x))))|> filter(year==2025) |> dplyr::select(all_of(covariates) ) |> c() |> unlist() |> enframe() |> rename("coef"="value")
-    
-    
-  ) |> mutate(loading=value*coef) |> 
-  
-  
-  ggplot2::ggplot(aes(x=name,y=loading))+ggplot2::geom_col() +ggplot2::theme(axis.text.x = element_text(angle = 45, vjust = .9, hjust=1))+ylab("Average effect of predictor on forecast")
-
-```
-
-Figure 5 shows the average effect of each of the predictors on the 2024 forecast. There is also an intercept, which averaged `r round(top_mod_ave_coef |> filter(name=="intercept") |> pull(value),2)` and each of the top models had a lag 1 moving average (MA1) coefficient (average = `r round(top_mod_ave_coef |> filter(name=="ma1") |> pull(value),2)`), such that when  a positive forecast error (actual value > predicted) lead to a decrease in the next forecast.
-
-```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 5. Effects of covariates on 2024 forecast."}
-
-
-top_mod_ave_coef_24 |> filter(!name%in%c("intercept","ma1","ar1","sar1")) |>
-  left_join(
-    dat |> mutate(across(all_of(covariates),\(x)c(scale(x))))|> filter(year==2024) |> dplyr::select(all_of(covariates) ) |> c() |> unlist() |> enframe() |> rename("coef"="value")
-    
-    
-  ) |> mutate(loading=value*coef) |> 
-  
-  
-  ggplot2::ggplot(aes(x=name,y=loading))+ggplot2::geom_col() +ggplot2::theme(axis.text.x = element_text(angle = 45, vjust = .9, hjust=1))+ylab("Average effect of predictor on forecast")
-
-```
-
-
-Figure 6 shows time series of the z-scored covariate values.
+Figure 4 shows time series of the z-scored covariate values.
 
 ```{r message=FALSE, warning=FALSE, results="show", fig.align='center',fig.show=TRUE, fig.cap="Figure 6. Standardized covariate values by year of forecast for most recent 10 years."}
 
@@ -915,7 +977,7 @@ integer_breaks <- function(n = 5, ...) {
 }
 
 
-dat %>% dplyr::select(all_of(covariates),year) %>% mutate(across(all_of(covariates),function(x)c(scale(x))),year=as.integer(year)) %>% pivot_longer(all_of(covariates),values_to = "Z-scored value") %>% filter(between(year,2000,2025)) %>% ggplot(aes(x=year,y=`Z-scored value`))+geom_point()+geom_line() + facet_wrap(~name)+geom_hline(yintercept = 0,lty=2)+scale_x_continuous(breaks=integer_breaks(),guide = guide_axis(check.overlap = TRUE))
+dat %>% dplyr::select(all_of(covariates),year) %>% mutate(across(all_of(covariates),function(x)c(scale(x))),year=as.integer(year)) %>% pivot_longer(all_of(covariates),values_to = "Z-scored value") %>% filter(between(year,2000,2026)) %>% ggplot(aes(x=year,y=`Z-scored value`))+geom_point()+geom_line() + facet_wrap(~name)+geom_hline(yintercept = 0,lty=2)+scale_x_continuous(breaks=integer_breaks(),guide = guide_axis(check.overlap = TRUE))
 
 ```
 
