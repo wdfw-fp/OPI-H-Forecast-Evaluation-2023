@@ -392,7 +392,7 @@ NPGO<-read_table("https://www.o3d.org/npgo/data/NPGO.txt",skip=29,col_names=F,co
 
 sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
                            data.dir=here::here("data"),
-                           ncfilename="sst.mnmean_1_27_2026.nc",
+                           ncfilename="sst.mnmean_2_3_2026.nc",
                            latrange=c(44,50),
                            lonrange=c(-125,-120)
 )%>%
@@ -402,10 +402,10 @@ sstdat<-get_ersst_v5_new(years=c(min(Yrlist$year):max(Yrlist$year)),
   mutate(year=as.numeric(year),
          month=as.numeric(month)
          )%>%
-  bind_rows(read_csv(here::here("data/January_ERSST_v5_2026.csv"))%>%
-              dplyr::select(year,month,meanSST=SST)
-
-            )%>%
+  # bind_rows(read_csv(here::here("data/January_ERSST_v5_2026.csv"))%>%
+  #             dplyr::select(year,month,meanSST=SST)
+  # 
+  #           )%>%
   group_by(month)%>%
   mutate(gmeanSST=mean(meanSST,na.rm=T))%>%
   ungroup()%>%
@@ -633,8 +633,8 @@ model_list<-lapply(best_covariates[[1]],#[best_covariates[[2]]$model_num[1:num_m
   dplyr::rename(model=rowname,model_name=value)
 
 
-if(!file.exists("results/forecasts_2-3-26.rds")|redo_forecasts==TRUE){
-  results<-SalmonForecasting::one_step_ahead(
+if(!file.exists("results/forecasts_2-3-26_2.rds")|redo_forecasts==TRUE){
+  results2<-SalmonForecasting::one_step_ahead(
     series=dat,
                   leave_yrs=leave_yrs,
                   TY_ensemble=TY_ensemble,
@@ -651,9 +651,9 @@ if(!file.exists("results/forecasts_2-3-26.rds")|redo_forecasts==TRUE){
   include_mod = TRUE
                   )
 
-save(results,file="results/forecasts_2-3-26.rds")
+save(results,file="results/forecasts_2-3-26_2.rds")
 }else{
-  load("results/forecasts_2-3-26.rds")
+  load("results/forecasts_2-3-26_2.rds")
 }
 
 gc()
@@ -769,7 +769,7 @@ ens$forecast_skill %>%filter(grepl("weight",model))
 # top_mod_coefs<-bind_rows(lapply(top_mods$mod,\(x)x[[1]])) |> mutate(model=rp$top_mods |> filter(year==2026) |> pull(model) ) |>
 #   left_join(ens$final_model_weights |> dplyr::select(model,MAPE_weight)) |>
 #   left_join(results |> filter(year==2026) |> dplyr::select(model,predicted_abundance))
-#   
+# 
 # 
 # top_mod_coef_info<-
 # top_mod_coefs |> mutate(across(dplyr::matches(covariates),\(x){x*MAPE_weight})) |> dplyr::select(dplyr::matches(covariates)) |>colSums(na.rm=TRUE)|> tibble::enframe("name","Average coefficient") |> arrange(desc(abs(`Average coefficient`))) |> left_join(
